@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from furfaro import PINN  # replace with your PINN class definition file
+from furfaro_tfc_di import PINN  # replace with your PINN class definition file
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 print("Using device:", device)
@@ -10,7 +10,7 @@ print("Using device:", device)
 model = PINN(in_dim=2, out_dim=1).to(device)
 
 # Load saved weights
-model.load_state_dict(torch.load("pinn_value_function.pth", map_location=device))
+model.load_state_dict(torch.load("x_tfc_di.pth", map_location=device))
 model.eval()
 print("Model loaded.")
 
@@ -26,7 +26,13 @@ X = np.vstack([X1.ravel(), X2.ravel()]).T
 X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
 
 with torch.no_grad():  # NO gradients needed
-    V_pred = model(X_tensor).cpu().numpy().reshape(nx, nx)
+    x_bc = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=device)
+    v_bc = torch.tensor([[0.0]], dtype=torch.float32, device=device)
+    g = model(X_tensor).cpu().numpy().reshape(nx, nx)
+    # convert tensor boundary predictions to numpy scalars for broadcasting with g
+    g_0 = model(x_bc).cpu().numpy().squeeze()
+    v_bc_val = v_bc.cpu().numpy().squeeze()
+    V_pred = g + v_bc_val - g_0
 
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from matplotlib import cm

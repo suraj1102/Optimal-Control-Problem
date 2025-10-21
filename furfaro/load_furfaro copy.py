@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from furfaro import PINN  # replace with your PINN class definition file
+from furfaro_tfc_di import PINN  # replace with your PINN class definition file
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 print("Using device:", device)
@@ -10,7 +10,7 @@ print("Using device:", device)
 model = PINN(in_dim=2, out_dim=1).to(device)
 
 # Load saved weights
-model.load_state_dict(torch.load("pinn_value_function_di.pth", map_location=device))
+model.load_state_dict(torch.load("x_tfc_di.pth", map_location=device))
 model.eval()
 print("Model loaded.")
 
