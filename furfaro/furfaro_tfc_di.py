@@ -27,16 +27,16 @@ print("Using device:", device)
 class PINN(nn.Module):
     def __init__(self, in_dim=2, out_dim=1, activation=nn.Tanh):
         super().__init__()
-        num_hidden_units = 400
+        num_hidden_units = 128
 
         self.h1 = nn.Linear(in_dim, num_hidden_units)
         self.y = nn.Linear(num_hidden_units, out_dim)
 
         self.activation = activation()
 
-        nn.init.normal_(self.h1.weight)
-        nn.init.normal_(self.h1.bias)
-        nn.init.normal_(self.y.weight)
+        nn.init.uniform_(self.h1.weight, -1, 1)
+        nn.init.uniform_(self.h1.bias, -1, 1)
+        nn.init.uniform_(self.y.weight, -1, 1)
         nn.init.zeros_(self.y.bias)
 
     def forward(self, x):
@@ -44,23 +44,45 @@ class PINN(nn.Module):
         x = self.y(x)
         return x
     
-    def initialize_weights(self, X_init):
-        # Ensure X_init is a tensor of shape (N_samples, in_dim)
-        
-        # T is the guess 
-        x1 = X_init[:, 0]
-        x2 = X_init[:, 1]
-        T = 0.5 * (x1 + x2)**2 
 
-        H =  self.activation(X_init @ self.h1.weight.T + self.h1.bias)
-        y = H @ self.y.weight.T + self.y.bias
+    def initialize_weights(self, X_init, target_func, regularization=1e-6, device=device):
+        X_init = X_init.to(device)
 
-        print(f"""{T.shape=}
-{self.h1.weight.shape=} | {self.h1.bias.shape=} 
-{self.y.weight.shape=} | {self.y.bias.shape=}
-{H.shape=}
-{y.shape=}
-""")
+        with torch.no_grad():
+            H = self.activation(self.h1(X_init))  # [N, num_hidden_units]
+            target = target_func(X_init).to(device)  # [N, out_dim]
+
+            print(f"Hidden layer shape: {H.shape}")
+            print(f"Target shape: {target.shape}")
+
+            # Analytical solution: W = (HᵀH + λI)⁻¹ Hᵀ T
+            HTH = H.T @ H
+            HTT = H.T @ target
+
+            I = torch.eye(HTH.shape[0], device=device)
+            HTH_reg = HTH + regularization * I
+
+            try:
+                beta_analytical = torch.linalg.solve(HTH_reg, HTT)  # [num_hidden_units, out_dim]
+
+                # Copy to network weights
+                self.y.weight.data.copy_(beta_analytical.T)  # PyTorch expects [out_dim, num_hidden_units]
+                self.y.bias.data.zero_()
+
+                # Evaluate fit quality
+                V_approx = H @ beta_analytical
+                mse_error = torch.mean((V_approx - target) ** 2)
+
+                print(f"Analytical initialization completed successfully.")
+                print(f"Approximation MSE: {mse_error.item():.6e}")
+                print(f"Output weights norm: {torch.norm(self.y.weight).item():.6f}")
+
+                return True, mse_error.item()
+
+            except Exception as e:
+                print(f"Analytical solution failed: {e}")
+                print("Proceeding with random initialization...")
+                return False, float('inf')
 
 
 
@@ -116,14 +138,16 @@ def main():
     # Hyperparameters
     n_colloc = 5_000
     lr = 5e-3
-    n_epochs = 5_000
+    n_epochs = 10_001
 
     # Freeze first layer weights and biases
     for param in model.h1.parameters():
         param.requires_grad = False
 
     x_init = sample_inputs(2000).to(device)
-    model.initialize_weights(x_init)
+
+    target_func = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
+    model.initialize_weights(x_init, target_func)
 
     # Since weights and biases of h1 are frozen, no need to use model.parameters()
     optimizer = optim.Adam(model.y.parameters(), lr=lr)

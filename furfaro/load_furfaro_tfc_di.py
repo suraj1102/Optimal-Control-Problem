@@ -15,7 +15,7 @@ model.eval()
 print("Model loaded.")
 
 def exact(x1, x2):
-    return 0.5 * x1**2 + x2**2
+    return np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
 
 # --- Evaluate on a grid ---
 nx = 201
@@ -50,7 +50,7 @@ fig.colorbar(surf1, ax=axes[0], shrink=0.6, aspect=10)
 
 # Exact solution
 V_exact = exact(X1, X2)
-surf2 = axes[1].plot_surface(X1, X2, V_exact, cmap=plt.get_cmap("plasma"), linewidth=0, antialiased=True)
+surf2 = axes[1].plot_surface(X1, X2, V_exact, cmap=plt.get_cmap("viridis"), linewidth=0, antialiased=True)
 axes[1].set_xlabel("x1")
 axes[1].set_ylabel("x2")
 axes[1].set_zlabel("V")
@@ -59,7 +59,7 @@ fig.colorbar(surf2, ax=axes[1], shrink=0.6, aspect=10)
 
 # Error surface
 V_error = np.abs(V_pred - V_exact)
-surf3 = axes[2].plot_surface(X1, X2, V_error, cmap=plt.get_cmap("inferno"), linewidth=0, antialiased=True)
+surf3 = axes[2].plot_surface(X1, X2, V_error, cmap=plt.get_cmap("viridis"), linewidth=0, antialiased=True)
 axes[2].set_xlabel("x1")
 axes[2].set_ylabel("x2")
 axes[2].set_zlabel("Error")
