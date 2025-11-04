@@ -87,10 +87,13 @@ def save_model(model, hparams, save_prefix):
     for f in os.listdir("saved_models"):
         if f.startswith(save_prefix) and f.endswith(".pth"):
             try:
-                num = int(f[len(save_prefix):-4])  # strip prefix and ".pth"
+                # Extract the number from the filename
+                num = int(f[len(save_prefix) + 1:-4])  # Adjusted to account for the '-' separator
                 existing.append(num)
             except ValueError:
                 continue
+    
+    # Determine the next model number
     next_num = max(existing) + 1 if existing else 1
     num_str = f"{next_num:03d}"
     filename = f"{save_prefix}-{num_str}.pth"
