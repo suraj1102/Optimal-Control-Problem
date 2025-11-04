@@ -109,8 +109,8 @@ def log_wandb(model):
     # Log training time along with other metrics
     wandb.log({"training_time": training_time})  # in seconds
 
-    for pde_loss, boundry_loss in zip(pde_loss_history, boundry_loss_history):
-        wandb.log({"pde_loss": pde_loss, "boundry_loss": boundry_loss})
+    for epoch, (pde_loss, boundry_loss) in enumerate(zip(pde_loss_history, boundry_loss_history)):
+        wandb.log({"pde_loss": pde_loss, "boundry_loss": boundry_loss}, step=epoch)
 
     # Log Model Performance:
     V_pred, V, X1, X2 = compute_V_funcs(model, V_exact, n_points=200) # 200 x 200
