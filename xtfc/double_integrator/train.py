@@ -1,15 +1,45 @@
 from imports import *
 from model import *
 
-# Hyperparameters
-hidden_units = [128]
-activation = nn.Tanh
-n_colloc = 10_000
-lr = 1e-3
-n_epochs = 100_000 + 1
+import os
+from dotenv import load_dotenv
+import wandb
+from datetime import datetime
 
-def main():
+load_dotenv("/Users/suraj/Library/CloudStorage/OneDrive-PlakshaUniversity/Classes/Sem5/DL/DL-Project/OPC/.env")
+KEY = os.getenv("WANDB_API_KEY")
+
+# Hyperparameters
+hparams = {
+        'hidden_units': [128],
+        'activation': nn.ReLU,
+        'n_colloc': 10_000,
+        'lr': 1e-3,
+        'n_epochs': 1_000,
+        'analytical_pretraining': True
+    }
+
+V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
+V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
+
+
+pde_loss_history = []
+boundry_loss_history = []
+
+# Global variables for tracking model saves
+model_number = None
+saved_filename = None
+
+def train(hparams):
+    global model_number, saved_filename
+    hidden_units = hparams['hidden_units']
+    activation = hparams['activation']
+    n_colloc = hparams['n_colloc']
+    lr = hparams['lr']
+    n_epochs = hparams['n_epochs']
+
     model = X_TFC(in_dim=2, out_dim=1, hidden_units=hidden_units, activation=activation).to(device)
+    model.train()
 
     # Freeze layer weights and biases
     for layer in model.layers:
@@ -20,42 +50,79 @@ def main():
     for p in model.y.parameters():
         p.requires_grad = True
 
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total = sum(p.numel() for p in model.parameters())
-    print(f"Trainable params: {trainable}/{total}") 
 
-    x_init = sample_inputs(n_sample=2000).to(device)
+    if hparams['analytical_pretraining']:
+        x_init = sample_inputs(n_sample=2000).to(device)
+        model.analytical_pretraning(x_init, V_guess)
 
-    target_func = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
-    model.analytical_pretraning(x_init, target_func)
-
-    # Since weights and biases of all layers are frozen, no need to use model.parameters()
     optimizer = optim.Adam(model.y.parameters(), lr=lr)
-    
-    # tranining loop
-    loss_history = []
+
     for epoch in range(n_epochs):
-        model.train()
         optimizer.zero_grad()
 
+        # Sample points
         x_colloc = sample_inputs(n_sample=n_colloc)
         x_colloc.requires_grad_(True)
 
-        residual, V_out = pde_residual(model, x_colloc)
+        # Forward pass and residual calulation
+        residual, boundry_res, V_out, G_out = pde_residual(model, x_colloc)
+
+        boundry_loss = torch.mean(boundry_res**2)
         pde_loss = torch.mean(residual**2)
-        
-        loss = pde_loss
-        loss.backward()
+        pde_loss.backward()
+
         optimizer.step()
+        pde_loss_history.append(pde_loss.item())
+        boundry_loss_history.append(boundry_loss.item())
 
-        loss_history.append(loss.item())
         if epoch % 100 == 0:
-            print(
-                f"Epoch {epoch} | Total Loss: {loss.item():.4e}"
-            )
+            print(f"Epoch {epoch} | PDE Loss: {pde_loss.item():.4e} | Boundry Loss: {boundry_loss.item():.4e}")
 
-    # Save model
-    torch.save(model.state_dict(), "x_tfc_di.pth")
+    global model_number, saved_filename
+    model_number, saved_filename = save_model(model, hparams)
+    return model, model_number is not None
+
+def log_wandb(model):
+    # --- wandb logging ---
+    hparams_to_log = hparams.copy()
+    if 'activation' in hparams_to_log:
+        hparams_to_log['activation'] = hparams_to_log['activation'].__name__
+
+    wandb.login(key=KEY)
+    run = wandb.init(
+        project="OPC",
+        config=hparams_to_log,
+        name=f"di-xtfc-{model_number}",
+        reinit="finish_previous"
+    )
+
+    for pde_loss, boundry_loss in zip(pde_loss_history, boundry_loss_history):
+        wandb.log({"pde_loss": pde_loss, "boundry_loss": boundry_loss})
+
+    # Log Model Performance:
+    V_pred, V, X1, X2 = compute_V_funcs(model, V_exact, n_points=200) # 200 x 200
+    V_error = np.abs(V_pred - V)
+    max_V_error = np.max(V_error)
+    avg_V_error = np.mean(V_error)
+    print(f"Max V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}")
+
+    wandb.log({
+        "V_pred": wandb.Image(plt.imshow(V_pred).figure),
+        "V_exact": wandb.Image(plt.imshow(V).figure),
+        "V_error": wandb.Image(plt.imshow(V_error).figure),
+        "X1": wandb.Image(plt.imshow(X1).figure),
+        "X2": wandb.Image(plt.imshow(X2).figure),
+        "max_V_error": max_V_error,
+        "avg_V_error": avg_V_error
+    })
+    
+    plt.close('all')  # Close all figures to free memory
+
+    run.finish()
 
 if __name__ == '__main__':
-    main()
+    model, is_unique = train(hparams)
+    if is_unique:  # if model was unique (not a duplicate)
+        log_wandb(model)
+    else:
+        print("Duplicate Model Found - Skipping wandb logging")

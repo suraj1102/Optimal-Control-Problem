@@ -3,6 +3,8 @@ from model import *
 from train import *
 
 # --- Recreate the model (same architecture) ---
+hidden_units = hparams['hidden_units']
+activation = hparams['activation']
 model = X_TFC(in_dim=2, out_dim=1, hidden_units=hidden_units, activation=activation).to(device)
 
 # Load saved weights

@@ -94,6 +94,7 @@ def pde_residual(model, x):
 
     V = g + v_bc - g_0
 
+
     grads = torch.autograd.grad(V, x, grad_outputs=torch.ones_like(V), create_graph=True, retain_graph=True)[0]
     # grads is N, 2
 
@@ -107,6 +108,7 @@ def pde_residual(model, x):
     term1 = -0.5 * (torch.square(x1) + torch.square(x2))
     term2 = - V_x1 * x2
     term3 = 0.5 * torch.square(V_x2)
-    residual = term1 + term2 + term3
+    pde_residual = term1 + term2 + term3
+    boundry_residual = v_bc - g_0
 
-    return residual, V
+    return pde_residual, boundry_residual, V, g
