@@ -1,6 +1,34 @@
 from imports import *
 from model import *
 from train import *
+import os
+
+# --- Load model dynamically ---
+save_prefix = "di-xtfc-act_hu-test"
+model_number = "001"  # Example model number
+
+# Construct file paths
+model_path = os.path.join("saved_models", f"{save_prefix}-{model_number}.pth")
+hparams_path = os.path.join("saved_models", f"{save_prefix}-{model_number}_hparams.txt")
+
+# Load hyperparameters
+hparams = {}
+with open(hparams_path, 'r') as f:
+    for line in f:
+        key, value = line.strip().split(": ", 1)
+        if key == 'activation':
+            hparams[key] = getattr(nn, value)  # Convert activation name to function
+        elif value.isdigit():
+            hparams[key] = int(value)
+        else:
+            try:
+                hparams[key] = float(value)
+            except ValueError:
+                hparams[key] = value
+
+# Ensure 'hidden_units' is parsed as a list of integers
+if isinstance(hparams['hidden_units'], str):
+    hparams['hidden_units'] = [int(x) for x in hparams['hidden_units'].strip('[]').split(',')]
 
 # --- Recreate the model (same architecture) ---
 hidden_units = hparams['hidden_units']
@@ -8,9 +36,9 @@ activation = hparams['activation']
 model = X_TFC(in_dim=2, out_dim=1, hidden_units=hidden_units, activation=activation).to(device)
 
 # Load saved weights
-model.load_state_dict(torch.load("x_tfc_di.pth", map_location=device))
+model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
-print("Model loaded.")
+print(f"Model loaded from {model_path}.")
 
 def exact(x1, x2):
     return np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2

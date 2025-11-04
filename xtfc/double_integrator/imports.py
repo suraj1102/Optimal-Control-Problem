@@ -93,7 +93,7 @@ def save_model(model, hparams, save_prefix):
                 continue
     next_num = max(existing) + 1 if existing else 1
     num_str = f"{next_num:03d}"
-    filename = f"{save_prefix}{num_str}.pth"
+    filename = f"{save_prefix}-{num_str}.pth"
     filepath = os.path.join("saved_models", filename)
     torch.save(model.state_dict(), filepath)
     print(f"Saved model to {filepath}")
