@@ -4,7 +4,7 @@ from model import *
 import os
 from dotenv import load_dotenv
 import wandb
-from datetime import datetime
+import time
 
 load_dotenv("/Users/suraj/Library/CloudStorage/OneDrive-PlakshaUniversity/Classes/Sem5/DL/DL-Project/OPC/.env")
 KEY = os.getenv("WANDB_API_KEY")
@@ -12,12 +12,16 @@ KEY = os.getenv("WANDB_API_KEY")
 # Hyperparameters
 hparams = {
         'hidden_units': [128],
-        'activation': nn.ReLU,
-        'n_colloc': 10_000,
+        'activation': nn.Tanh,
+        'n_colloc': 5_000,
         'lr': 1e-3,
-        'n_epochs': 1_000,
+        'n_epochs': 10_000,
         'analytical_pretraining': True
     }
+
+# the model save file will have this name as well as the wandb run
+# useful to indicate what models were created for what experiments
+save_prefix = "di-xtfc-act_hu-test"
 
 V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
 V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
@@ -26,12 +30,15 @@ V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
 pde_loss_history = []
 boundry_loss_history = []
 
-# Global variables for tracking model saves
+# Global variables for tracking model saves and metrics
 model_number = None
 saved_filename = None
+training_time = None
 
 def train(hparams):
-    global model_number, saved_filename
+    global model_number, saved_filename, training_time
+    start_time = time.time()
+    
     hidden_units = hparams['hidden_units']
     activation = hparams['activation']
     n_colloc = hparams['n_colloc']
@@ -78,8 +85,11 @@ def train(hparams):
         if epoch % 100 == 0:
             print(f"Epoch {epoch} | PDE Loss: {pde_loss.item():.4e} | Boundry Loss: {boundry_loss.item():.4e}")
 
-    global model_number, saved_filename
-    model_number, saved_filename = save_model(model, hparams)
+    global model_number, saved_filename, training_time
+    training_time = time.time() - start_time
+    print(f"Training completed in {training_time:.2f} seconds")
+    
+    model_number, saved_filename = save_model(model, hparams, save_prefix)
     return model, model_number is not None
 
 def log_wandb(model):
@@ -92,9 +102,12 @@ def log_wandb(model):
     run = wandb.init(
         project="OPC",
         config=hparams_to_log,
-        name=f"di-xtfc-{model_number}",
+        name=f"{save_prefix}-{model_number}",
         reinit="finish_previous"
     )
+
+    # Log training time along with other metrics
+    wandb.log({"training_time": training_time})  # in seconds
 
     for pde_loss, boundry_loss in zip(pde_loss_history, boundry_loss_history):
         wandb.log({"pde_loss": pde_loss, "boundry_loss": boundry_loss})
@@ -113,7 +126,8 @@ def log_wandb(model):
         "X1": wandb.Image(plt.imshow(X1).figure),
         "X2": wandb.Image(plt.imshow(X2).figure),
         "max_V_error": max_V_error,
-        "avg_V_error": avg_V_error
+        "avg_V_error": avg_V_error,
+        "saved_filename": saved_filename
     })
     
     plt.close('all')  # Close all figures to free memory
@@ -121,8 +135,15 @@ def log_wandb(model):
     run.finish()
 
 if __name__ == '__main__':
-    model, is_unique = train(hparams)
-    if is_unique:  # if model was unique (not a duplicate)
-        log_wandb(model)
-    else:
-        print("Duplicate Model Found - Skipping wandb logging")
+    activations = [nn.Tanh, nn.ReLU, nn.SiLU, nn.Softmax]
+    hu_list = [10, 50, 100, 400, 1000]
+
+    for activation in activations:
+        hparams['activation'] = activation
+        for hu in hu_list:
+            hparams['hidden_units'] = [hu]
+            model, is_unique = train(hparams)
+            if is_unique:  # if model was unique (not a duplicate)
+                log_wandb(model)
+            else:
+                print("Duplicate Model Found - Skipping wandb logging")

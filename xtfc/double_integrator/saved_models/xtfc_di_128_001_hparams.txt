@@ -1,6 +1,0 @@
-hidden_units: [128]
-activation: Tanh
-n_colloc: 10000
-lr: 0.001
-n_epochs: 1000
-analytical_pretraining: True

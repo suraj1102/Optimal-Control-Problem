@@ -49,18 +49,14 @@ def compute_V_funcs(model, V_exact_func, n_points=200):
     return V_pred, V_exact_func(X1, X2), X1, X2
 
 
-def save_model(model, hparams):
+def save_model(model, hparams, save_prefix):
     # Save model into file along with hparams txt file
     # Create directory if it doesn't exist
-    hidden_units = hparams['hidden_units']
     os.makedirs("./saved_models", exist_ok=True)
-    hidden_str = "_".join(map(str, hidden_units))
-    # Use a running 3-digit counter based on existing saved files
-    prefix = f"xtfc_di_{hidden_str}_"
     existing = []
     # Check for existing models with same hyperparameters
     for f in os.listdir("saved_models"):
-        if f.startswith(prefix) and f.endswith("_hparams.txt"):
+        if f.startswith(save_prefix) and f.endswith("_hparams.txt"):
             hparams_filepath = os.path.join("saved_models", f)
             existing_hparams = {}
             with open(hparams_filepath, 'r') as hpfile:
@@ -89,15 +85,15 @@ def save_model(model, hparams):
                 return None, None
     # If no match, save new model
     for f in os.listdir("saved_models"):
-        if f.startswith(prefix) and f.endswith(".pth"):
+        if f.startswith(save_prefix) and f.endswith(".pth"):
             try:
-                num = int(f[len(prefix):-4])  # strip prefix and ".pth"
+                num = int(f[len(save_prefix):-4])  # strip prefix and ".pth"
                 existing.append(num)
             except ValueError:
                 continue
     next_num = max(existing) + 1 if existing else 1
     num_str = f"{next_num:03d}"
-    filename = f"xtfc_di_{hidden_str}_{num_str}.pth"
+    filename = f"{save_prefix}{num_str}.pth"
     filepath = os.path.join("saved_models", filename)
     torch.save(model.state_dict(), filepath)
     print(f"Saved model to {filepath}")
