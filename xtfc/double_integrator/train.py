@@ -8,6 +8,7 @@ import time
 
 load_dotenv("/Users/suraj/Library/CloudStorage/OneDrive-PlakshaUniversity/Classes/Sem5/DL/DL-Project/OPC/.env")
 KEY = os.getenv("WANDB_API_KEY")
+wandb.login(key=KEY)
 
 # Hyperparameters
 hparams = {
@@ -21,14 +22,14 @@ hparams = {
 
 # the model save file will have this name as well as the wandb run
 # useful to indicate what models were created for what experiments
-save_prefix = "di-xtfc-act_hu-test"
+save_prefix = "di-xtfc-10kepochs"
 
 V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
 V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
 
 
 pde_loss_history = []
-boundry_loss_history = []
+boundary_loss_history = []
 
 # Global variables for tracking model saves and metrics
 model_number = None
@@ -38,6 +39,12 @@ training_time = None
 def train(hparams):
     global model_number, saved_filename, training_time
     start_time = time.time()
+
+    # Set these arrays back to empty so that when running multiple models it doesn't keep extending
+    global pde_loss_history, boundary_loss_history
+    # Reset histories for the current model
+    pde_loss_history.clear()
+    boundary_loss_history.clear()
     
     hidden_units = hparams['hidden_units']
     activation = hparams['activation']
@@ -80,7 +87,7 @@ def train(hparams):
 
         optimizer.step()
         pde_loss_history.append(pde_loss.item())
-        boundry_loss_history.append(boundry_loss.item())
+        boundary_loss_history.append(boundry_loss.item())
 
         if epoch % 100 == 0:
             print(f"Epoch {epoch} | PDE Loss: {pde_loss.item():.4e} | Boundry Loss: {boundry_loss.item():.4e}")
@@ -98,19 +105,22 @@ def log_wandb(model):
     if 'activation' in hparams_to_log:
         hparams_to_log['activation'] = hparams_to_log['activation'].__name__
 
-    wandb.login(key=KEY)
     run = wandb.init(
         project="OPC",
         config=hparams_to_log,
         name=f"{save_prefix}-{model_number}",
-        reinit="finish_previous"
+        reinit=True,
+        resume=False
     )
 
     # Log training time along with other metrics
     wandb.log({"training_time": training_time})  # in seconds
 
-    for epoch, (pde_loss, boundry_loss) in enumerate(zip(pde_loss_history, boundry_loss_history)):
-        wandb.log({"pde_loss": pde_loss, "boundry_loss": boundry_loss}, step=epoch)
+    for epoch, (pde_loss, boundary_loss) in enumerate(zip(pde_loss_history, boundary_loss_history)):
+        wandb.log({
+            "pde_loss": float(pde_loss),
+            "boundary_loss": float(boundary_loss)
+        }, step=epoch)
 
     # Log Model Performance:
     V_pred, V, X1, X2 = compute_V_funcs(model, V_exact, n_points=200) # 200 x 200
@@ -135,13 +145,13 @@ def log_wandb(model):
     run.finish()
 
 if __name__ == '__main__':
-    activations = [nn.Tanh, nn.ReLU, nn.SiLU, nn.Softmax]
+    activations = [nn.Tanh, nn.ReLU, nn.SiLU, nn.Sigmoid]
     hu_list = [10, 50, 100, 400, 1000]
 
-    for activation in activations:
-        hparams['activation'] = activation
-        for hu in hu_list:
-            hparams['hidden_units'] = [hu]
+    for hu in hu_list:
+        hparams['hidden_units'] = [hu]
+        for activation in activations:
+            hparams['activation'] = activation
             model, is_unique = train(hparams)
             if is_unique:  # if model was unique (not a duplicate)
                 log_wandb(model)

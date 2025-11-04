@@ -56,35 +56,6 @@ def save_model(model, hparams, save_prefix):
     existing = []
     # Check for existing models with same hyperparameters
     for f in os.listdir("saved_models"):
-        if f.startswith(save_prefix) and f.endswith("_hparams.txt"):
-            hparams_filepath = os.path.join("saved_models", f)
-            existing_hparams = {}
-            with open(hparams_filepath, 'r') as hpfile:
-                for line in hpfile:
-                    key, value = line.strip().split(": ", 1)
-                    if key == 'activation':
-                        existing_hparams[key] = value
-                    elif value.isdigit():
-                        existing_hparams[key] = int(value)
-                    else:
-                        try:
-                            existing_hparams[key] = float(value)
-                        except ValueError:
-                            existing_hparams[key] = value
-            # Compare all hparams (activation as string)
-            match = True
-            for key in hparams:
-                val = hparams[key]
-                if key == 'activation':
-                    val = val.__name__
-                if key not in existing_hparams or str(existing_hparams[key]) != str(val):
-                    match = False
-                    break
-            if match:
-                print(f"Model with identical hyperparameters already exists: {hparams_filepath}. Not saving model.")
-                return None, None
-    # If no match, save new model
-    for f in os.listdir("saved_models"):
         if f.startswith(save_prefix) and f.endswith(".pth"):
             try:
                 # Extract the number from the filename
