@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import wandb
 import time
+from tqdm import tqdm
 
 load_dotenv("/Users/suraj/Library/CloudStorage/OneDrive-PlakshaUniversity/Classes/Sem5/DL/DL-Project/OPC/.env")
 KEY = os.getenv("WANDB_API_KEY")
@@ -16,13 +17,13 @@ hparams = {
         'activation': nn.Tanh,
         'n_colloc': 5_000,
         'lr': 1e-3,
-        'n_epochs': 10_000,
+        'n_epochs': 50_000,
         'analytical_pretraining': True
     }
 
 # the model save file will have this name as well as the wandb run
 # useful to indicate what models were created for what experiments
-save_prefix = "di-xtfc-10kepochs"
+save_prefix = "di-deep-tfc-50kepochs"
 
 V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
 V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
@@ -71,7 +72,8 @@ def train(hparams):
 
     optimizer = optim.Adam(model.y.parameters(), lr=lr)
 
-    for epoch in range(n_epochs):
+    progress_bar = tqdm(range(n_epochs), desc="Training Progress", unit="epoch")
+    for epoch in progress_bar:
         optimizer.zero_grad()
 
         # Sample points
@@ -89,8 +91,10 @@ def train(hparams):
         pde_loss_history.append(pde_loss.item())
         boundary_loss_history.append(boundry_loss.item())
 
-        if epoch % 100 == 0:
-            print(f"Epoch {epoch} | PDE Loss: {pde_loss.item():.4e} | Boundry Loss: {boundry_loss.item():.4e}")
+        progress_bar.set_postfix({
+            "PDE Loss": f"{pde_loss.item():.4e}",
+            "Boundary Loss": f"{boundry_loss.item():.4e}"
+        })
 
     global model_number, saved_filename, training_time
     training_time = time.time() - start_time
@@ -146,11 +150,21 @@ def log_wandb(model):
 
 if __name__ == '__main__':
     activations = [nn.Tanh, nn.ReLU, nn.SiLU, nn.Sigmoid]
-    hu_list = [10, 50, 100, 400, 1000]
+    hu_list = [
+        [10, 10],
+        [10, 50],
+        [10, 100],
+        [50, 10],
+        [50, 50],
+        [50, 100],
+        [100, 10],
+        [100, 50],
+        [100, 100]
+    ]
 
-    for hu in hu_list:
-        hparams['hidden_units'] = [hu]
-        for activation in activations:
+    for hu in tqdm(hu_list, desc="Hidden Units Progress", unit="config"):
+        hparams['hidden_units'] = hu
+        for activation in tqdm(activations, desc="Activations Progress", unit="activation", leave=False):
             hparams['activation'] = activation
             model, is_unique = train(hparams)
             if is_unique:  # if model was unique (not a duplicate)

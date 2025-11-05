@@ -4,8 +4,8 @@ from train import *
 import os
 
 # --- Load model dynamically ---
-save_prefix = "di-xtfc-act_hu-test"
-model_number = "001"  # Example model number
+save_prefix = "di-deep-tfc-50kepochs"
+model_number = "020"  # Example model number
 
 # Construct file paths
 model_path = os.path.join("saved_models", f"{save_prefix}-{model_number}.pth")
@@ -62,6 +62,8 @@ with torch.no_grad():  # NO gradients needed
 
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from matplotlib import cm
+
+print("V_pred at (0, 0):", V_pred[nx // 2, nx // 2])
 
 # --- 3D surface plots of V(x1,x2) ---
 fig, axes = plt.subplots(1, 3, figsize=(14, 6), subplot_kw={'projection': '3d'})
