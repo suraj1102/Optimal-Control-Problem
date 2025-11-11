@@ -23,7 +23,7 @@ hparams = {
 
 # the model save file will have this name as well as the wandb run
 # useful to indicate what models were created for what experiments
-save_prefix = "x-tfc-bias-10kepochs"
+save_prefix = "x-tfc-unfreeze-10kepochs"
 
 V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
 V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
@@ -70,7 +70,13 @@ def train(hparams):
         x_init = sample_inputs(n_sample=2000).to(device)
         model.analytical_pretraning(x_init, V_guess)
 
-    optimizer = optim.Adam(model.y.parameters(), lr=lr)
+    # Unfreeze weights and biases
+    for layer in model.layers:
+        for p in layer.parameters():
+            p.requires_grad = True
+
+
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     progress_bar = tqdm(range(n_epochs), desc="Training Progress", unit="epoch")
     for epoch in progress_bar:
@@ -113,7 +119,7 @@ def log_wandb(model):
         project="OPC",
         config=hparams_to_log,
         name=f"{save_prefix}-{model_number}",
-        tags=[f"{save_prefix}"],
+        tags=[f"{save_prefix}"], 
         reinit=True,
         resume=False
     )
