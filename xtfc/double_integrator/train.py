@@ -17,13 +17,14 @@ hparams = {
         'activation': nn.Tanh,
         'n_colloc': 5_000,
         'lr': 1e-3,
-        'n_epochs': 50_000,
-        'analytical_pretraining': True
+        'n_epochs': 10_000,
+        'analytical_pretraining': True,
+        'architecture': 'xtfc'
     }
 
 # the model save file will have this name as well as the wandb run
 # useful to indicate what models were created for what experiments
-save_prefix = "di-deep-tfc-50kepochs"
+save_prefix = "di-xtfc-es"
 
 V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
 V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
@@ -46,7 +47,7 @@ def train(hparams):
     # Reset histories for the current model
     pde_loss_history.clear()
     boundary_loss_history.clear()
-    
+
     hidden_units = hparams['hidden_units']
     activation = hparams['activation']
     n_colloc = hparams['n_colloc']
@@ -65,12 +66,16 @@ def train(hparams):
     for p in model.y.parameters():
         p.requires_grad = True
 
-
     if hparams['analytical_pretraining']:
         x_init = sample_inputs(n_sample=2000).to(device)
         model.analytical_pretraning(x_init, V_guess)
 
     optimizer = optim.Adam(model.y.parameters(), lr=lr)
+
+    # Early stopping parameters
+    patience = 500  # Number of epochs to wait for improvement
+    best_loss = float('inf')
+    epochs_without_improvement = 0
 
     progress_bar = tqdm(range(n_epochs), desc="Training Progress", unit="epoch")
     for epoch in progress_bar:
@@ -80,7 +85,7 @@ def train(hparams):
         x_colloc = sample_inputs(n_sample=n_colloc)
         x_colloc.requires_grad_(True)
 
-        # Forward pass and residual calulation
+        # Forward pass and residual calculation
         residual, boundry_res, V_out, G_out = pde_residual(model, x_colloc)
 
         boundry_loss = torch.mean(boundry_res**2)
@@ -96,10 +101,20 @@ def train(hparams):
             "Boundary Loss": f"{boundry_loss.item():.4e}"
         })
 
-    global model_number, saved_filename, training_time
+        # Early stopping check
+        if pde_loss.item() < best_loss:
+            best_loss = pde_loss.item()
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        if epochs_without_improvement >= patience:
+            print(f"Early stopping triggered at epoch {epoch + 1}")
+            break
+
     training_time = time.time() - start_time
     print(f"Training completed in {training_time:.2f} seconds")
-    
+
     model_number, saved_filename = save_model(model, hparams, save_prefix)
     return model, model_number is not None
 
@@ -151,15 +166,11 @@ def log_wandb(model):
 if __name__ == '__main__':
     activations = [nn.Tanh, nn.ReLU, nn.SiLU, nn.Sigmoid]
     hu_list = [
-        [10, 10],
-        [10, 50],
-        [10, 100],
-        [50, 10],
-        [50, 50],
-        [50, 100],
-        [100, 10],
-        [100, 50],
-        [100, 100]
+        [10],
+        [50],
+        [100],
+        [400],
+        [1000]
     ]
 
     for hu in tqdm(hu_list, desc="Hidden Units Progress", unit="config"):
