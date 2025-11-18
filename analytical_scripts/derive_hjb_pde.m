@@ -6,7 +6,7 @@ x = [x1; x2];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "nonlinear-dynamics";
+problem = "nonlinear-dynamics-2";
 
 if problem == "nonlinear-dynamics"
     Q = [1 0; 0 1];
@@ -28,17 +28,17 @@ elseif problem == "nonlinear-dynamics-2"
 
     f_x = [
         -x1 + x2;
-        -x1/2 - x2/2 * (1 - (cos(2*x1) + 2)^2) + 2
+        -x1/2 - x2/2 * (1 - (cos(2*x1) + 2)^2)
     ];
 
     g_x = [
         0;
-        cos(2*x1)
+        cos(2*x1) + 2
     ];
 
 elseif problem == "double-integrator"
-    Q = [1 0; 0 1];
-    R = 1;
+    Q = 1/2 * [1 0; 0 1];
+    R = 1/2 * 1;
 
     f_x = [
         x2;
