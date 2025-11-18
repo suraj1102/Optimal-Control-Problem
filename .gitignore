@@ -1,5 +1,6 @@
 # don't add pth model files to gi
 saved_models/
+derive_dynamics.m
 
 .vscode/
 .ipynb_checkpoints
