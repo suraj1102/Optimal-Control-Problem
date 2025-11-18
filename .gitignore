@@ -1,6 +1,8 @@
 # don't add pth model files to gi
 saved_models/
 derive_dynamics.m
+solve_quadratic.m
+*.asv
 
 .vscode/
 .ipynb_checkpoints
