@@ -113,9 +113,9 @@ def set_optimizer_scheduler(model: ValueFunctionModel):
     if scheduler_name in ['exponential', 'ExponentialLR', torch.optim.lr_scheduler.ExponentialLR, optim.lr_scheduler.ExponentialLR]:
         if not isinstance(optimizer, torch.optim.Optimizer):
             raise TypeError("Optimizer must be a torch.optim.Optimizer for scheduler")
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=hparams.get('gamma', 0.99))
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=hparams.get('gamma', 0.99), last_epoch=hparams.get('n_epochs', 10_000))
     elif scheduler_name in ['reduce-on-plateau', 'ReduceLROnPlateau', torch.optim.lr_scheduler.ReduceLROnPlateau, optim.lr_scheduler.ReduceLROnPlateau]:
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=hparams.get('patience', 10))
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=hparams.get('patience', 100))
     elif scheduler_name in ['cosine-annealing', 'CosineAnnealingLR', torch.optim.lr_scheduler.CosineAnnealingLR, optim.lr_scheduler.CosineAnnealingLR]:
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hparams.get('T_max', 100))
     elif scheduler_name in ['adaptive', 'None', None]:
@@ -308,7 +308,7 @@ if __name__ == '__main__':
 
     activations = [nn.SiLU]
     hu_list = [
-        [100]
+        [100],
     ]
 
     for hu in tqdm(hu_list, desc="Hidden Units Progress", unit="config"):

@@ -30,7 +30,7 @@ class ValueFunctionModel(nn.Module):
             nn.init.uniform_(layer.bias, -1, 1)
         
         # Create output layer 
-        self.y = nn.Linear(hidden_units[-1], out_dim, bias=False)
+        self.y = nn.Linear(hidden_units[-1], out_dim, bias=True if 'bias' in hparams['architecture'] else False)
         self.activation = hparams['activation']()
 
         # Initialize output layer | No bias is given

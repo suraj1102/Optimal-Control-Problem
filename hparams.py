@@ -11,7 +11,9 @@ hparams = {
     'edge_sampling_weight': 0.2,
     'lr': 1e-3,
     'optimizer': 'ADAM',
-    'Scheduler': 'None',
-    'n_epochs': 5_000,
+    'Scheduler': 'reduce-on-plateau',
+    'patience': 100, # For reduce-on-plateau scheduler
+    'gamma': 0.99, # For exponential scheduler
+    'n_epochs': 10_000,
     'early_stopping': -1, # Indicates patience (in no. of epochs), -1 means no early stopping
     }
