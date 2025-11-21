@@ -8,7 +8,7 @@ import wandb
 import time
 from tqdm import tqdm
 
-LOG_WANDB = True
+LOG_WANDB = False
 SHOW_TEST_PLOT = True
 
 V_guess = None
@@ -167,7 +167,7 @@ def early_stopping(pde_loss: float, patience: int = hparams['early_stopping']) -
     return early_stopping.epochs_without_improvement >= patience
 
 
-def train():
+def train(hparams=hparams):
     set_problem_parameters()
     model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
     model.train()
@@ -229,9 +229,12 @@ def train():
         if hparams['early_stopping'] > 0:
             if early_stopping(pde_loss.item()):
                 print(f"Early stopping triggered at epoch {epoch + 1}")
+                if LOG_WANDB:
+                    run.log({"early_stopping_epoch": epoch + 1})
+
                 break
     
-    return model, (run if LOG_WANDB else None)
+    return model, (run if LOG_WANDB else None), pde_loss.item(), boundary_loss.item()
 
 
 # Adjust the test function to accept the run object
@@ -315,7 +318,7 @@ if __name__ == '__main__':
         hparams['hidden_units'] = hu
         for activation in tqdm(activations, desc="Activations Progress", unit="activation", leave=False):
             hparams['activation'] = activation
-            model, run = train()
+            model, run, _, _ = train(hparams)
             if run:
                 print("Going into Test")
             test(model, run)
