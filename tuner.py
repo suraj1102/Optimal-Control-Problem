@@ -27,7 +27,7 @@ def objective(trial):
 
 def run_study():
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=10, show_progress_bar=True)
+    study.optimize(objective, n_trials=1000, show_progress_bar=True)
 
     print("Best trial:")
     trial = study.best_trial

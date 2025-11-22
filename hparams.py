@@ -2,7 +2,7 @@ from utils import *
 
 hparams = {
     'problem': 'double-integrator',
-    'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze
+    'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx',
     'hidden_units': [128],
     'activation': nn.SiLU,
@@ -16,4 +16,8 @@ hparams = {
     'gamma': 0.99, # For exponential scheduler
     'n_epochs': 10_000,
     'early_stopping': 500, # Indicates patience (in no. of epochs), -1 means no early stopping
+    'log_wandb': False,
+    'plot_graphs': True,
+    'save_model': True,
+    'model_save_path': 'trained_model.pth',
 }

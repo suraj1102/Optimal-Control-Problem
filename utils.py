@@ -52,7 +52,3 @@ def compute_V_pred_and_exact(model, V_exact_func, n_points=200):
         V_pred = g + v_bc_val - g_0
     
     return V_pred, V_exact_func(X1, X2), X1, X2
-
-
-def parse_hparams(hparams):
-    parser = argparse.ArgumentParser()

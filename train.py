@@ -167,12 +167,17 @@ def early_stopping(pde_loss: float, patience: int = hparams['early_stopping']) -
     return early_stopping.epochs_without_improvement >= patience
 
 
+def save_model(model: torch.nn.Module, filename: str):
+    torch.save(model.state_dict(), filename)
+    print(f"Model saved to {filename}")
+
+
 def train(hparams=hparams):
     set_problem_parameters()
     model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
     model.train()
 
-    if LOG_WANDB:
+    if hparams['log_wandb']:
         run = start_wandb_run()
 
     if hparams['analytical_pretraining'] and V_guess is None:
@@ -219,7 +224,7 @@ def train(hparams=hparams):
         })
 
         # Log losses to wandb inside the train function
-        if LOG_WANDB:
+        if hparams['log_wandb']:
             run.log({
                 "pde_loss": float(pde_loss.item()),
                 "boundary_loss": float(boundary_loss.item()),
@@ -229,10 +234,13 @@ def train(hparams=hparams):
         if hparams['early_stopping'] > 0:
             if early_stopping(pde_loss.item()):
                 print(f"Early stopping triggered at epoch {epoch + 1}")
-                if LOG_WANDB:
+                if hparams['log_wandb']:
                     run.log({"early_stopping_epoch": epoch + 1})
 
                 break
+
+    if hparams['save_model']:
+        save_model(model, hparams['model_save_path'])
     
     return model, (run if LOG_WANDB else None), pde_loss.item(), boundary_loss.item()
 
