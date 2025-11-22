@@ -246,8 +246,9 @@ def train(hparams=hparams):
 
 
 # Adjust the test function to accept the run object
-def test(model: torch.nn.Module, run: wandb.Run | None):
+def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
     model.eval()
+    plt.close('all')
 
     V_pred, V, X1, X2 = compute_V_pred_and_exact(model, V_exact, n_points=200) # 200 x 200
     if V_pred is not None and V is not None and X1 is not None and X2 is not None:
@@ -307,7 +308,11 @@ def test(model: torch.nn.Module, run: wandb.Run | None):
                 "V_pred": wandb.Image(fig),
             })
 
-        plt.close('all')  # Close all figures to free memory
+        if hparams['plot_graphs']:
+            plt.show(block=False)
+        
+        else:
+            plt.close('all')  # Close all figures to free memory
 
     if run:
         run.finish()

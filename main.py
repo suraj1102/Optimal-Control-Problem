@@ -34,9 +34,11 @@ def main():
     if type(hparams['activation']) == str:
         hparams['activation'] = getattr(nn, hparams['activation'])
 
+    if type(hparams['hidden_units']) == str:
+        hparams['hidden_units'] = [int(unit) for unit in hparams['hidden_units'].split(',')]
+
     model, run, pde_loss, boundary_loss = train(hparams)
-    if hparams['plot_graphs']:
-        test(model, run)
+    test(model, run, hparams)
 
 if __name__ == "__main__":
     main()
