@@ -6,7 +6,7 @@ x = [x1; x2];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "nonlinear-dynamics-2";
+problem = "inverted-pendulum";
 
 if problem == "nonlinear-dynamics"
     Q = [1 0; 0 1];
@@ -48,6 +48,27 @@ elseif problem == "double-integrator"
     g_x = [
         0;
         1
+    ];
+
+elseif problem == "inverted-pendulum"
+    % x1 -> theta | x2 -> dot(theta)
+    Q = [1 0; 0 0.1];
+    R = 1;
+
+    % g = 9.81;
+    % l = 1;
+    % m = 1;
+
+    syms g l m real
+
+    f_x = [
+        x2;
+        g/l * sin(x1)
+    ];
+
+    g_x = [
+        0;
+        1 / (m*l*l)
     ];
 
 else
@@ -99,7 +120,7 @@ end
 
 HJB = -HJB; % Stored in this format in paper
 HJB_latex = latex(HJB);
-disp(u_star)
-disp(latex(u_star))
-disp(HJB)
-disp(HJB_latex)
+disp(u_star);
+disp(latex(u_star));
+disp(HJB);
+disp(HJB_latex);
