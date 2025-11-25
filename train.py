@@ -8,7 +8,7 @@ import wandb
 import time
 from tqdm import tqdm
 
-LOG_WANDB = True
+LOG_WANDB = False
 SHOW_TEST_PLOT = True
 
 V_guess = None
@@ -167,12 +167,17 @@ def early_stopping(pde_loss: float, patience: int = hparams['early_stopping']) -
     return early_stopping.epochs_without_improvement >= patience
 
 
-def train():
+def save_model(model: torch.nn.Module, filename: str):
+    torch.save(model.state_dict(), filename)
+    print(f"Model saved to {filename}")
+
+
+def train(hparams=hparams):
     set_problem_parameters()
     model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
     model.train()
 
-    if LOG_WANDB:
+    if hparams['log_wandb']:
         run = start_wandb_run()
 
     if hparams['analytical_pretraining'] and V_guess is None:
@@ -219,7 +224,7 @@ def train():
         })
 
         # Log losses to wandb inside the train function
-        if LOG_WANDB:
+        if hparams['log_wandb']:
             run.log({
                 "pde_loss": float(pde_loss.item()),
                 "boundary_loss": float(boundary_loss.item()),
@@ -229,14 +234,21 @@ def train():
         if hparams['early_stopping'] > 0:
             if early_stopping(pde_loss.item()):
                 print(f"Early stopping triggered at epoch {epoch + 1}")
+                if hparams['log_wandb']:
+                    run.log({"early_stopping_epoch": epoch + 1})
+
                 break
+
+    if hparams['save_model']:
+        save_model(model, hparams['model_save_path'])
     
-    return model, (run if LOG_WANDB else None)
+    return model, (run if LOG_WANDB else None), pde_loss.item(), boundary_loss.item()
 
 
 # Adjust the test function to accept the run object
-def test(model: torch.nn.Module, run: wandb.Run | None):
+def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
     model.eval()
+    plt.close('all')
 
     V_pred, V, X1, X2 = compute_V_pred_and_exact(model, V_exact, n_points=200) # 200 x 200
     if V_pred is not None and V is not None and X1 is not None and X2 is not None:
@@ -296,7 +308,11 @@ def test(model: torch.nn.Module, run: wandb.Run | None):
                 "V_pred": wandb.Image(fig),
             })
 
-        plt.close('all')  # Close all figures to free memory
+        if hparams['plot_graphs']:
+            plt.show(block=False)
+        
+        else:
+            plt.close('all')  # Close all figures to free memory
 
     if run:
         run.finish()
@@ -315,7 +331,7 @@ if __name__ == '__main__':
         hparams['hidden_units'] = hu
         for activation in tqdm(activations, desc="Activations Progress", unit="activation", leave=False):
             hparams['activation'] = activation
-            model, run = train()
+            model, run, _, _ = train(hparams)
             if run:
                 print("Going into Test")
             test(model, run)
