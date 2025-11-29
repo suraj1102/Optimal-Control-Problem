@@ -13,12 +13,20 @@ SHOW_TEST_PLOT = True
 
 V_guess = None
 V_exact = None
+m = 0.1
+l = 1
+gravity = 9.81
 
 # Properly initialize pde_residual with a default placeholder function - for LSP and autocomplete
 def default_pde_residual(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
     return torch.zeros_like(x[:, 0])
 
 compute_pde_residual = default_pde_residual
+
+def default_control_input(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
+    return torch.zeros_like(x[:, 0])
+
+compute_control_input = default_pde_residual
 
 
 def start_wandb():
@@ -47,7 +55,7 @@ def set_problem_parameters():
     Sets the parameters for a specific problem type.
     These include the V_guess, V_exact, and pde_residual functions.
     """
-    global V_exact, V_guess, compute_pde_residual
+    global V_exact, V_guess, compute_pde_residual, compute_control_input
     problem = hparams['problem']
 
     if hparams['analytical_pretraining'] in ['None', None]:
@@ -73,11 +81,65 @@ def set_problem_parameters():
         
         compute_pde_residual = pde_residual_di
 
+        def control_input_di(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
+            Q = 0.5 * torch.tensor([[1.0, 0.0], [0.0, 1.0]], device=device)
+            R = 0.5 * torch.tensor([[1.0]], device=device)
+
+            f_x = torch.stack([
+                x[:, 1],
+                torch.zeros_like(x[:, 0], device=device),
+            ], dim=1)
+
+            g_x = torch.stack([
+                torch.zeros_like(x[:, 0], device=device),
+                torch.ones_like(x[:, 0], device=device)
+            ], dim=1)
+
+            grad_v = grad_v.to(device)
+            return -0.5 * R @ (g_x @ grad_v.T)
+        
+        compute_control_input = control_input_di
+
     elif problem == 'nonlinear-dynamics':
         pass # TODO
 
     elif problem == 'inverted-pendulum':
-        pass # TODO
+        V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
+        if hparams['analytical_pretraining'] == 'xTQx':
+            V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
+        elif hparams['analytical_pretraining'] == 'LQR':
+            pass # TODO
+
+        def pde_residual_ip(x: torch.Tensor, grad_v: torch.Tensor):
+            x1 = x[:, 0]
+            x2 = x[:, 1]
+            V_x1 = grad_v[:, 0]
+            V_x2 = grad_v[:, 0]
+            term1 = V_x1 * x2 + torch.square(x1) + torch.square(x2) / 10 
+            term2 = - torch.square(V_x2) / (4 * l**4 * m**2)
+            term3 = V_x2 * gravity * torch.sin(x1) / l
+            return term1 + term2 + term3
+
+        compute_pde_residual = pde_residual_ip
+
+        def control_input_ip(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
+            Q = torch.tensor([[1.0, 0.0], [0.0, 0.1]], device=device)
+            R = torch.tensor(1.0, device=device)
+
+            f_x = torch.stack([
+                x[:, 1],
+                gravity / l * torch.sin(x[:, 0])
+            ], dim=1)
+
+            g_x = torch.stack([
+                torch.zeros_like(x[:, 0], device=device),
+                torch.ones_like(x[:, 0], device=device) / (m * l * l)
+            ], dim=1)
+
+            grad_v = grad_v.to(device)
+            return -0.5 * R @ (grad_v.T @ g_x)
+        
+        compute_control_input = control_input_ip
 
     else:
         raise ValueError(f"Unknown Problem '{problem}' entered")
@@ -302,6 +364,11 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
         fig.suptitle(f"Run ID: {run_id}\nActivation: {activation_name}, Hidden Units: {hidden_units_str}\nMax V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}", fontsize=14, y=.92)
         plt.tight_layout()
 
+        # Save the plot as an image file
+        plot_filename = f"plot_{run.id if run else 'local'}_{activation_name}_{hidden_units_str}.png"
+        fig.savefig(plot_filename, dpi=300, bbox_inches='tight')
+        print(f"Plot saved to {plot_filename}")
+
         # Log the plot to wandb
         if run:
             run.log({
@@ -309,29 +376,110 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
             })
 
         if hparams['plot_graphs']:
+            print("Displaying plot (plot_graphs=True)...")
             plt.show(block=False)
-        
+            plt.pause(3)  # Allow the plot window to update
         else:
             plt.close('all')  # Close all figures to free memory
 
     if run:
         run.finish()
 
+
+def test_pendulum_stability(model: ValueFunctionModel):
+    initial_states = torch.tensor([[0.3, 0.3]], device=device) # x1, x2 = theta, dot(theta)
+    
+    # Control Loop
+    x = initial_states
+    time_horizon = 1000  # Set a large time horizon
+    dt = 0.01  # Time step for simulation
+    trajectory = [x.clone().detach()]  # Store the trajectory for analysis
+
+    for _ in range(time_horizon):
+        g_x, g_0, v, grad_v = model.get_outputs(x)
+        control_input = compute_control_input(x, grad_v)
+        
+        f_x = torch.stack([
+            x[:, 1],
+            torch.zeros_like(x[:, 0], device=device),
+        ], dim=1)
+
+        g_x = torch.stack([
+            torch.zeros_like(x[:, 0], device=device),
+            torch.ones_like(x[:, 0], device=device)
+        ], dim=1)
+
+        x_dot = f_x + g_x * control_input
+        x = x + x_dot * dt  # Update state using Euler integration
+        trajectory.append(x.clone().detach())
+
+        
+
+    trajectory = torch.stack(trajectory)  # Convert trajectory to a tensor for analysis
+
+
+
+def test_double_integrator_stability(model: ValueFunctionModel, no_input=False):
+    initial_states = torch.tensor([[0.3, 0.3]], device=device) # x1, x2 = theta, dot(theta)
+    
+    # Control Loop
+    x = initial_states
+    time_horizon = 1000  # Set a large time horizon
+    dt = 0.01  # Time step for simulation
+    trajectory = [x.clone().detach()]  # Store the trajectory for analysis
+
+    for _ in range(time_horizon):
+        g_x, g_0, v, grad_v = model.get_outputs(x)
+        control_input = compute_control_input(x, grad_v)
+        
+        f_x = torch.stack([
+            x[:, 1],
+            torch.zeros_like(x[:, 0], device=device)
+        ], dim=1)
+
+        g_x = torch.stack([
+            torch.zeros_like(x[:, 0], device=device),
+            torch.ones_like(x[:, 0], device=device) / (m * l * l)
+        ], dim=1) 
+
+        x_dot = f_x + g_x * control_input
+        x = x + x_dot * dt  # Update state using Euler integration
+        trajectory.append(x.clone().detach())
+
+    trajectory = torch.stack(trajectory)  # Convert trajectory to a tensor for analysis
+    # Plot the trajectory
+    trajectory = trajectory.cpu().numpy()  # Convert to numpy for plotting
+    time_steps = np.arange(len(trajectory)) * dt
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(time_steps, trajectory[:, 0, 0], label="x1 (Position)")
+    plt.plot(time_steps, trajectory[:, 0, 1], label="x2 (Velocity)")
+    plt.xlabel("Time (s)")
+    plt.ylabel("State")
+    plt.title("Time vs Trajectory")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
 # Fixing the train function call in the main block
 if __name__ == '__main__':
     if LOG_WANDB:
         start_wandb()
 
-    activations = [nn.SiLU]
-    hu_list = [
-        [100],
-    ]
+    # activations = [nn.SiLU]
+    # hu_list = [
+    #     [30],
+    # ]
 
-    for hu in tqdm(hu_list, desc="Hidden Units Progress", unit="config"):
-        hparams['hidden_units'] = hu
-        for activation in tqdm(activations, desc="Activations Progress", unit="activation", leave=False):
-            hparams['activation'] = activation
-            model, run, _, _ = train(hparams)
-            if run:
-                print("Going into Test")
-            test(model, run)
+    # for hu in tqdm(hu_list, desc="Hidden Units Progress", unit="config"):
+    #     hparams['hidden_units'] = hu
+    #     for activation in tqdm(activations, desc="Activations Progress", unit="activation", leave=False):
+    # hparams['activation'] = activation
+    model, run, _, _ = train(hparams)
+    if run:
+        print("Going into Test")
+    test(model, run, hparams)
+    if hparams['problem'] == 'inverted-pendulum':
+        test_pendulum_stability(model)
+    elif hparams['problem'] == 'double-integrator':
+        test_double_integrator_stability(model)
