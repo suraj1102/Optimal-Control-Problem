@@ -4,7 +4,7 @@ hparams = {
     'problem': 'double-integrator',
     'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx',
-    'hidden_units': [20],
+    'hidden_units': [50],
     'activation': nn.SiLU,
     'n_colloc': 5_000,
     'input_range': (-1, 1),

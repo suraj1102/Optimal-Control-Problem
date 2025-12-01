@@ -282,7 +282,8 @@ def train(hparams=hparams):
 
         progress_bar.set_postfix({
             "PDE Loss": f"{pde_loss.item():.4e}",
-            "Boundary Loss": f"{boundary_loss.item():.4e}"
+            "Boundary Loss": f"{boundary_loss.item():.4e}",
+            "LR": f"{optimizer.param_groups[0]['lr']:.4e}"
         })
 
         # Log losses to wandb inside the train function
