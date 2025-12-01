@@ -329,7 +329,7 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
     model.eval()
     plt.close('all')
 
-    V_pred, V, X1, X2 = compute_V_pred_and_exact(model, V_exact, n_points=200) # 200 x 200
+    V_pred, V, X1, X2 = compute_V_pred_and_exact(model, V_exact, n_points=200, hparams=hparams) # 200 x 200
     if V_pred is not None and V is not None and X1 is not None and X2 is not None:
         V_error = np.abs(V_pred - V)
         max_V_error = np.max(V_error)
