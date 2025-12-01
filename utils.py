@@ -28,6 +28,7 @@ def sample_inputs(n_sample = 5, dim = 2, edge_weight = 0.2, input_range = (-1, 1
         xi_edge_2 = np.random.uniform(0.8 * input_range[1], input_range[1], size=(n_edge, 1))
         xi_mid = np.random.uniform(0.8 * input_range[0], 0.8 * input_range[1], size=(n_mid, 1))
         xi = np.vstack([xi_edge_1, xi_edge_2, xi_mid])
+        # xi = np.random.uniform(input_range[0], input_range[1], size=(n_sample, 1))
         xs.append(xi)
     x = np.hstack(xs)
     return torch.tensor(x, dtype=torch.float32, device=device)

@@ -1,6 +1,7 @@
 from utils import *
 from xtfc_model import ValueFunctionModel
 from hparams import hparams
+from pinn_model import Pinn
 
 import os
 from dotenv import load_dotenv
@@ -73,7 +74,7 @@ def set_problem_parameters():
             x1 = x[:, 0]
             x2 = x[:, 1]
             V_x1 = grad_v[:, 0]
-            V_x2 = grad_v[:, 0]
+            V_x2 = grad_v[:, 1]
             term1 = -0.5 * (torch.square(x1) + torch.square(x2))
             term2 = - V_x1 * x2
             term3 = 0.5 * torch.square(V_x2)
@@ -114,7 +115,7 @@ def set_problem_parameters():
             x1 = x[:, 0]
             x2 = x[:, 1]
             V_x1 = grad_v[:, 0]
-            V_x2 = grad_v[:, 0]
+            V_x2 = grad_v[:, 1]
             term1 = V_x1 * x2 + torch.square(x1) + torch.square(x2) / 10 
             term2 = - torch.square(V_x2) / (4 * l**4 * m**2)
             term3 = V_x2 * gravity * torch.sin(x1) / l
@@ -233,6 +234,10 @@ def save_model(model: torch.nn.Module, filename: str):
     torch.save(model.state_dict(), filename)
     print(f"Model saved to {filename}")
 
+def train_pinn(hparams=hparams):
+    set_problem_parameters()
+    pass
+
 
 def train(hparams=hparams):
     set_problem_parameters()
@@ -308,7 +313,6 @@ def train(hparams=hparams):
     return model, (run if LOG_WANDB else None), pde_loss.item(), boundary_loss.item()
 
 
-# Adjust the test function to accept the run object
 def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
     model.eval()
     plt.close('all')

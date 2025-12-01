@@ -10,3 +10,9 @@
 - [ ] Add other control problems into the model
 - [x] Add functionality to set hparams from terminal so we can train multiple problems simultaneously.
 - [ ] Add a PINN model 
+
+
+## TODO MORE:
+- [] Optimize model
+- [] Debug performance
+- [] Add PINN

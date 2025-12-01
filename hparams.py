@@ -2,20 +2,20 @@ from utils import *
 
 hparams = {
     'problem': 'double-integrator',
-    'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
+    'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx',
-    'hidden_units': [50],
-    'activation': nn.SiLU,
+    'hidden_units': [100],
+    'activation': nn.Tanh,
     'n_colloc': 5_000,
     'input_range': (-1, 1),
     'edge_sampling_weight': 0.3,
     'lr': 1e-3,
     'optimizer': 'ADAM', # ADAM or LBFGS
-    'Scheduler': 'reduce-on-plateau',
+    'Scheduler': 'None',
     'patience': 100, # For reduce-on-plateau scheduler
     'gamma': 0.99, # For exponential scheduler
-    'n_epochs': 5_000,
-    'early_stopping': -1, # Indicates patience (in no. of epochs), -1 means no early stopping
+    'n_epochs': 10_000,
+    'early_stopping': 1000, # Indicates patience (in no. of epochs), -1 means no early stopping
     'log_wandb': False,
     'plot_graphs': True,
     'save_model': False,
