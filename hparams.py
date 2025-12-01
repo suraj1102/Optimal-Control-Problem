@@ -1,11 +1,11 @@
 from utils import * 
 
 hparams = {
-    'problem': 'double-integrator',
+    'problem': 'inverted-pendulum',
     'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
-    'analytical_pretraining': 'xTQx',
+    'analytical_pretraining': 'xTQx', # None, xTQx
     'hidden_units': [100],
-    'activation': nn.Tanh,
+    'activation': nn.SiLU,
     'n_colloc': 5_000,
     'input_range': (-1, 1),
     'edge_sampling_weight': 0.3,

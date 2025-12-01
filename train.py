@@ -234,14 +234,20 @@ def save_model(model: torch.nn.Module, filename: str):
     torch.save(model.state_dict(), filename)
     print(f"Model saved to {filename}")
 
-def train_pinn(hparams=hparams):
-    set_problem_parameters()
-    pass
-
 
 def train(hparams=hparams):
     set_problem_parameters()
-    model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
+
+    if 'pinn' in hparams['architecture'].lower():
+        is_pinn = True
+    else:
+        is_pinn = False
+
+    if is_pinn:
+        model = Pinn(in_dim=2, out_dim=1, hparams=hparams).to(device)
+    else:
+        model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
+
     model.train()
 
     if hparams['log_wandb']:
@@ -253,7 +259,9 @@ def train(hparams=hparams):
     if hparams['analytical_pretraining']:
         model.xTQx_analytical_pretraning(V_guess)
 
-    set_parameter_freezing(model)
+    if not is_pinn:
+        set_parameter_freezing(model)
+
     optimizer, scheduler = set_optimizer_scheduler(model)
 
     progress_bar = tqdm(range(hparams['n_epochs']), desc="Training Progress", unit="epoch")
@@ -271,6 +279,10 @@ def train(hparams=hparams):
 
         boundary_loss = torch.mean(boundary_residual**2)
         pde_loss = torch.mean(pde_residual**2)
+
+        if is_pinn:
+            pde_loss = pde_loss + boundary_loss
+
         pde_loss.backward()
 
         if isinstance(optimizer, torch.optim.LBFGS):
