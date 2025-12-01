@@ -1,13 +1,14 @@
+import numpy as np
 from utils import * 
 
 hparams = {
     'problem': 'inverted-pendulum',
     'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx', # None, xTQx
-    'hidden_units': [100],
-    'activation': nn.SiLU,
+    'hidden_units': [50, 50],
+    'activation': nn.Tanh,
     'n_colloc': 5_000,
-    'input_range': (-1, 1),
+    'input_range': (-np.pi/2, np.pi/2),
     'edge_sampling_weight': 0.3,
     'lr': 1e-3,
     'optimizer': 'ADAM', # ADAM or LBFGS

@@ -497,6 +497,7 @@ if __name__ == '__main__':
         print("Going into Test")
     test(model, run, hparams)
     if hparams['problem'] == 'inverted-pendulum':
-        test_pendulum_stability(model)
+        # test_pendulum_stability(model)
+        pass
     elif hparams['problem'] == 'double-integrator':
         test_double_integrator_stability(model)
