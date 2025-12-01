@@ -14,7 +14,7 @@ SHOW_TEST_PLOT = True
 
 V_guess = None
 V_exact = None
-m = 0.1
+m = 0.2
 l = 1
 gravity = 9.81
 
@@ -124,8 +124,8 @@ def set_problem_parameters():
         compute_pde_residual = pde_residual_ip
 
         def control_input_ip(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
-            Q = torch.tensor([[1.0, 0.0], [0.0, 0.1]], device=device)
-            R = torch.tensor(1.0, device=device)
+            Q = torch.tensor([[100.0, 0.0], [0.0, 1.0]], device=device)
+            R = torch.tensor([[1.0]], device=device)
 
             f_x = torch.stack([
                 x[:, 1],
@@ -138,7 +138,7 @@ def set_problem_parameters():
             ], dim=1)
 
             grad_v = grad_v.to(device)
-            return -0.5 * R @ (grad_v.T @ g_x)
+            return -0.5 * R @ (g_x @ grad_v.T)
         
         compute_control_input = control_input_ip
 
@@ -403,14 +403,15 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
         run.finish()
 
 
-def test_pendulum_stability(model: ValueFunctionModel):
-    initial_states = torch.tensor([[0.3, 0.3]], device=device) # x1, x2 = theta, dot(theta)
+def test_pendulum_stability(model: ValueFunctionModel, inital_conditions=[0.1, 0.1]):
+    initial_states = torch.tensor([inital_conditions], device=device) # x1, x2 = theta, dot(theta)
     
     # Control Loop
     x = initial_states
     time_horizon = 1000  # Set a large time horizon
     dt = 0.01  # Time step for simulation
     trajectory = [x.clone().detach()]  # Store the trajectory for analysis
+    u_vals = []  # Store the trajectory for analysis
 
     for _ in range(time_horizon):
         g_x, g_0, v, grad_v = model.get_outputs(x)
@@ -418,22 +419,37 @@ def test_pendulum_stability(model: ValueFunctionModel):
         
         f_x = torch.stack([
             x[:, 1],
-            torch.zeros_like(x[:, 0], device=device),
+            gravity / l * torch.sin(x[:, 0])
         ], dim=1)
 
         g_x = torch.stack([
             torch.zeros_like(x[:, 0], device=device),
-            torch.ones_like(x[:, 0], device=device)
+            torch.ones_like(x[:, 0], device=device) / (m * l * l)
         ], dim=1)
 
         x_dot = f_x + g_x * control_input
         x = x + x_dot * dt  # Update state using Euler integration
         trajectory.append(x.clone().detach())
+        u_vals.append(control_input.clone().detach())
 
         
-
     trajectory = torch.stack(trajectory)  # Convert trajectory to a tensor for analysis
+    u_vals = torch.stack(u_vals)
+    # Plot the trajectory
+    trajectory = trajectory.cpu().numpy()  # Convert to numpy for plotting
+    u_vals = u_vals.cpu().numpy()
+    time_steps = np.arange(len(trajectory)) * dt
 
+    plt.figure(figsize=(10, 6))
+    plt.plot(time_steps, trajectory[:, 0, 0], label="x1 (Position)", color="tab:blue")
+    plt.plot(time_steps, trajectory[:, 0, 1], label="x2 (Velocity)", color="tab:orange")
+    plt.plot(time_steps[:-1], u_vals[:, 0, 0], label="u", color="tab:red")
+    plt.xlabel("Time (s)")
+    plt.ylabel("State")
+    plt.title("Time vs Trajectory")
+    plt.legend()
+    plt.grid()
+    plt.show()
 
 
 def test_double_integrator_stability(model: ValueFunctionModel, no_input=False):
@@ -469,8 +485,8 @@ def test_double_integrator_stability(model: ValueFunctionModel, no_input=False):
     time_steps = np.arange(len(trajectory)) * dt
 
     plt.figure(figsize=(10, 6))
-    plt.plot(time_steps, trajectory[:, 0, 0], label="x1 (Position)")
-    plt.plot(time_steps, trajectory[:, 0, 1], label="x2 (Velocity)")
+    plt.plot(time_steps, trajectory[:, 0, 0], label="x1 (Position in rads)")
+    plt.plot(time_steps, trajectory[:, 0, 1], label="x2 (Velocity in rads/s)")
     plt.xlabel("Time (s)")
     plt.ylabel("State")
     plt.title("Time vs Trajectory")
@@ -497,7 +513,7 @@ if __name__ == '__main__':
         print("Going into Test")
     test(model, run, hparams)
     if hparams['problem'] == 'inverted-pendulum':
-        # test_pendulum_stability(model)
+        test_pendulum_stability(model, [0.1, -0.3])
         pass
     elif hparams['problem'] == 'double-integrator':
         test_double_integrator_stability(model)
