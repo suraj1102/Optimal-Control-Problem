@@ -32,7 +32,7 @@ compute_control_input = default_pde_residual
 
 
 def start_wandb():
-    load_dotenv("/Users/suraj/Library/CloudStorage/OneDrive-PlakshaUniversity/Classes/Sem5/DL/DL-Project/OPC/.env")
+    load_dotenv()
     KEY = os.getenv("WANDB_API_KEY")
     wandb.login(key=KEY)
 
@@ -43,11 +43,12 @@ def start_wandb_run():
         hparams_to_log['activation'] = hparams_to_log['activation'].__name__
 
     run = wandb.init(
-        project="OPCTest",
+        project="OPC-GridSearch",
         config=hparams_to_log,
         name=f"{hparams['problem']}-{hparams['architecture']}-{hparams_to_log['activation']}-{time.strftime('%d%m%Y-%H%M%S')}",
         reinit=True,
-        resume=False
+        resume=False,
+        tag=f"{hparams['problem']}-{hparams['architecture']}"
     )
     return run
 
@@ -391,16 +392,17 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
         fig.suptitle(f"Run ID: {run_id}\nActivation: {activation_name}, Hidden Units: {hidden_units_str}\nMax V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}", fontsize=14, y=.92)
         plt.tight_layout()
 
-        # Save the plot as an image file
-        plot_filename = f"plot_{run.id if run else 'local'}_{activation_name}_{hidden_units_str}.png"
-        fig.savefig(plot_filename, dpi=300, bbox_inches='tight')
-        print(f"Plot saved to {plot_filename}")
+        if hparams['save_plot']:
+            # Save the plot as an image file
+            plot_filename = f"plot_{run.id if run else 'local'}_{activation_name}_{hidden_units_str}.png"
+            fig.savefig(plot_filename, dpi=300, bbox_inches='tight')
+            print(f"Plot saved to {plot_filename}")
 
-        # Log the plot to wandb
-        if run:
-            run.log({
-                "V_pred": wandb.Image(fig),
-            })
+            # Log the plot to wandb
+            if run:
+                run.log({
+                    "V_pred": wandb.Image(fig),
+                })
 
         if hparams['plot_graphs']:
             print("Displaying plot (plot_graphs=True)...")
