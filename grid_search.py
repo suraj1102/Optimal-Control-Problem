@@ -6,7 +6,7 @@ from torch import nn
 hparams['log_wandb'] = True
 hparams['save_model'] = False
 hparams['plot_graphs'] = False
-hparams['save_plot'] = False
+hparams['save_plot'] = True
 
 
 ## HYPERPARAMETER GRID
