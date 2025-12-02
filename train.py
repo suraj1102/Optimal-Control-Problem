@@ -107,7 +107,7 @@ def set_problem_parameters():
         pass # TODO
 
     elif problem == 'inverted-pendulum':
-        V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
+        # V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
         if hparams['analytical_pretraining'] == 'xTQx':
             V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
         elif hparams['analytical_pretraining'] == 'LQR':
@@ -330,7 +330,7 @@ def train(hparams=hparams):
     if hparams['save_model']:
         save_model(model, None, hparams)
     
-    return model, (run if LOG_WANDB else None), pde_loss.item(), boundary_loss.item()
+    return model, (run if hparams['log_wandb'] else None), pde_loss.item(), boundary_loss.item()
 
 
 def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
@@ -338,19 +338,7 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
     plt.close('all')
 
     V_pred, V, X1, X2 = compute_V_pred_and_exact(model, V_exact, n_points=200, hparams=hparams) # 200 x 200
-    if V_pred is not None and V is not None and X1 is not None and X2 is not None:
-        V_error = np.abs(V_pred - V)
-        max_V_error = np.max(V_error)
-        avg_V_error = np.mean(V_error)
-        print(f"Max V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}")
-
-        # Log metrics to wandb
-        if run:
-            run.log({
-                "max_V_error": max_V_error,
-                "avg_V_error": avg_V_error,
-            })
-
+    if V_pred is not None and X1 is not None and X2 is not None:
         # Plot the results
         fig, axes = plt.subplots(1, 3, figsize=(14, 6), subplot_kw={'projection': '3d'})
 
@@ -362,21 +350,35 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
         axes[0].set_title("Learned V(x1, x2)")
         fig.colorbar(surf1, ax=axes[0], shrink=0.6, aspect=10)
 
-        # Exact solution
-        surf2 = axes[1].plot_surface(X1, X2, V, cmap=plt.get_cmap("viridis"), linewidth=0, antialiased=True)
-        axes[1].set_xlabel("x1")
-        axes[1].set_ylabel("x2")
-        axes[1].set_zlabel("V")
-        axes[1].set_title("Exact V(x1, x2)")
-        fig.colorbar(surf2, ax=axes[1], shrink=0.6, aspect=10)
+        if V_exact is not None:
 
-        # Error surface
-        surf3 = axes[2].plot_surface(X1, X2, V_error, cmap=plt.get_cmap("viridis"), linewidth=0, antialiased=True)
-        axes[2].set_xlabel("x1")
-        axes[2].set_ylabel("x2")
-        axes[2].set_zlabel("Error")
-        axes[2].set_title("Error |V_pred - V_exact|")
-        fig.colorbar(surf3, ax=axes[2], shrink=0.6, aspect=10)
+            V_error = np.abs(V_pred - V)
+            max_V_error = np.max(V_error)
+            avg_V_error = np.mean(V_error)
+            print(f"Max V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}")
+
+            # Log metrics to wandb
+            if run:
+                run.log({
+                    "max_V_error": max_V_error,
+                    "avg_V_error": avg_V_error,
+                })
+
+            # Exact solution
+            surf2 = axes[1].plot_surface(X1, X2, V, cmap=plt.get_cmap("viridis"), linewidth=0, antialiased=True)
+            axes[1].set_xlabel("x1")
+            axes[1].set_ylabel("x2")
+            axes[1].set_zlabel("V")
+            axes[1].set_title("Exact V(x1, x2)")
+            fig.colorbar(surf2, ax=axes[1], shrink=0.6, aspect=10)
+
+            # Error surface
+            surf3 = axes[2].plot_surface(X1, X2, V_error, cmap=plt.get_cmap("viridis"), linewidth=0, antialiased=True)
+            axes[2].set_xlabel("x1")
+            axes[2].set_ylabel("x2")
+            axes[2].set_zlabel("Error")
+            axes[2].set_title("Error |V_pred - V_exact|")
+            fig.colorbar(surf3, ax=axes[2], shrink=0.6, aspect=10)
 
         # Adjust view
         for ax in axes:
@@ -386,16 +388,21 @@ def test(model: torch.nn.Module, run: wandb.Run | None, hparams):
         activation_name = hparams['activation'].__name__ if hasattr(hparams['activation'], "__name__") else str(hparams['activation'])
         hidden_units_str = str(hparams['hidden_units'])
         run_id = run.id if run else 'local' # Retrieve the run ID from wandb
-        fig.suptitle(f"Run ID: {run_id}\nActivation: {activation_name}, Hidden Units: {hidden_units_str}\nMax V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}", fontsize=14, y=.92)
+        # Compose the plot title with available metrics
+        title = f"Run ID: {run_id}\nActivation: {activation_name}, Hidden Units: {hidden_units_str}"
+        if 'max_V_error' in locals() and 'avg_V_error' in locals():
+            title += f"\nMax V_error: {max_V_error:.4e}, Avg V_error: {avg_V_error:.4e}"
+        fig.suptitle(title, fontsize=14, y=.92)
         plt.tight_layout()
 
         if hparams['save_plot']:
             # Save the plot as an image file
-            plot_filename = f"plot_{run.id if run else 'local'}_{activation_name}_{hidden_units_str}.png"
-            fig.savefig(plot_filename, dpi=300, bbox_inches='tight')
-            print(f"Plot saved to {plot_filename}")
+            # plot_filename = f"plot_{run.id if run else 'local'}_{activation_name}_{hidden_units_str}.png"
+            # fig.savefig(plot_filename, dpi=300, bbox_inches='tight')
+            # print(f"Plot saved to {plot_filename}")
 
             # Log the plot to wandb
+            print("Hi")
             if run:
                 run.log({
                     "V_pred": wandb.Image(fig),
@@ -539,7 +546,7 @@ if __name__ == '__main__':
             model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
         
         model.load_state_dict(torch.load(filename, map_location=device))
-        run = None
+        # run = None
         print(f"Loaded model from {filename}")
 
     set_problem_parameters()

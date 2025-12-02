@@ -53,7 +53,8 @@ def compute_V_pred_and_exact(model, V_exact_func, n_points=200, hparams=None):
         v_bc_val = v_bc.cpu().numpy().squeeze()
         V_pred = g + v_bc_val - g_0
     
-    return V_pred, V_exact_func(X1, X2), X1, X2
+    V_exact = V_exact_func(X1, X2) if V_exact_func is not None else None
+    return V_pred, V_exact, X1, X2
 
 
 class SinAct(nn.Module):

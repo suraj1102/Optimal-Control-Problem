@@ -28,4 +28,4 @@ for hidden_units in hidden_units_options:
                       f"analytical_pretraining={analytical_pretraining}, architecture={architecture}")
 
                 model, run, _, _ = train(hparams)
-                # test(model, run, hparams)
+                test(model, run, hparams)

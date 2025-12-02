@@ -15,13 +15,13 @@ hparams = {
     'Scheduler': 'None',
     'patience': 100, # For reduce-on-plateau scheduler
     'gamma': 0.99, # For exponential scheduler
-    'n_epochs': 10_000,
+    'n_epochs': 1_000,
     'early_stopping': -1, # Indicates patience (in no. of epochs), -1 means no early stopping
-    'log_wandb': False,
-    'plot_graphs': False,
+    'log_wandb': True,
+    'plot_graphs': True,
     'save_model': False,
     'model_save_path': 'trained_model_di.pth',
-    'save_plot': False,
+    'save_plot': True,
 
     'Q': np.matrix([[100.0, 0.0], [0.0, 1.0]]),
     'R': np.matrix([[1.0]]),
