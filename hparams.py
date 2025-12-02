@@ -3,8 +3,10 @@ from utils import *
 
 hparams = {
     'problem': 'inverted-pendulum',
-    'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
+    'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx', # None, xTQx
+    'in_dim': 2,
+    'out_dim': 1,
     'hidden_units': [50],
     'activation': nn.SiLU,
     'n_colloc': 5_000,
@@ -23,9 +25,20 @@ hparams = {
     'model_save_path': 'trained_model_di.pth',
     'save_plot': True,
 
-    'Q': np.matrix([[100.0, 0.0], [0.0, 1.0]]),
-    'R': np.matrix([[1.0]]),
+    'Q': np.matrix([[100.0, 0.0], 
+    [0.0, 1.0]]),
+    'R': np.matrix([[1]]),
+    
+    # 'Q': np.matrix([[5.0, 0.0, 0.0, 0.0], 
+    # [0.0, 1.0, 0.0, 0.0],
+    # [0.0, 0.0, 100.0, 0.0],
+    # [0.0, 0.0, 0.0, 1.0]]),
+    # 'R': np.matrix([[10.0, 0.0],
+    # [0.0, 1.0]]),
+
     'mass': 0.2,
+    'mass_cart': 1.0,
+    'cart_height': 0.4,
     'length': 1.0,
     'gravity': 9.81,
     'LOAD_MODEL': False,

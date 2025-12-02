@@ -12,7 +12,7 @@ class ValueFunctionModel(nn.Module):
         super().__init__()
         self.hparams = hparams
         hidden_units = hparams['hidden_units']
-        self.x_bc = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=device)
+        self.x_bc = torch.zeros((1, in_dim), dtype=torch.float32, device=device)
         self.v_bc = torch.tensor([[0.0]], dtype=torch.float32, device=device)
 
         # Use ModuleList so submodules are registered and moved when calling .to(device)
@@ -113,7 +113,8 @@ class ValueFunctionModel(nn.Module):
         return g_x, g_0, v, grad_v
 
     def xTQx_analytical_pretraning(self, target_func, n_sample=2000, regularization=1e-6):
-        x_init = sample_inputs(n_sample=2000).to(device)
+        print(target_func)
+        x_init = sample_inputs(n_sample=2000, dim=hparams['in_dim'], edge_weight=hparams['edge_sampling_weight'], input_range=hparams['input_range']).to(device)
 
         with torch.no_grad():
             H = self.forward_layers_output(x_init)  # [N, num_hidden_units[-1] ]

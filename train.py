@@ -16,6 +16,8 @@ V_guess = None
 V_exact = None
 
 m = hparams.get('mass', 1)
+m_cart = hparams.get('mass_cart', 1)
+cart_height = hparams.get('cart_height', 0.4)
 l = hparams.get('length', 1)
 gravity = hparams.get('gravity', 9.81)
 
@@ -107,7 +109,7 @@ def set_problem_parameters():
         pass # TODO
 
     elif problem == 'inverted-pendulum':
-        # V_exact = lambda x1, x2: np.sqrt(3) / 2 * (x1**2 + x2**2) + x1 * x2
+        V_exact = lambda x1, x2: 0.0
         if hparams['analytical_pretraining'] == 'xTQx':
             V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
         elif hparams['analytical_pretraining'] == 'LQR':
@@ -129,24 +131,77 @@ def set_problem_parameters():
 
         compute_pde_residual = pde_residual_ip
 
-        def control_input_ip(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
-            Q = torch.tensor([[100.0, 0.0], [0.0, 1.0]], device=device)
-            R = torch.tensor([[1.0]], device=device)
+    elif problem == 'double-input-cart-pole':
+        V_exact = lambda x1, x2: 0
+
+        def control_input_dicp(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
+            Q = torch.tensor(np.asarray(hparams['Q']), device=device)
+            R = torch.tensor(np.asarray(hparams['R']), device=device)
 
             f_x = torch.stack([
                 x[:, 1],
-                gravity / l * torch.sin(x[:, 0])
-            ], dim=1)
-
-            g_x = torch.stack([
                 torch.zeros_like(x[:, 0], device=device),
-                torch.ones_like(x[:, 0], device=device) / (m * l * l)
-            ], dim=1)
+                x[:, 3],
+                -(gravity / l) * torch.sin(x[:, 2])
+            ], dim=1) 
+
+            g_x = torch.tensor([ 
+                [torch.zeros_like(x[:, 0], device=device), torch.zeros_like(x[:, 0], device=device)],
+                [torch.ones_like(x[:, 0], device=device) / m_cart, torch.zeros_like(x[:, 0], device=device)],
+                [torch.zeros_like(x[:, 0], device=device), torch.zeros_like(x[:, 0], device=device)],
+                [torch.ones_like(x[:, 0], device=device) * cart_height / (-m * l * l), torch.ones_like(x[:, 0], device=device) / (-m * l * l)]
+            ])
 
             grad_v = grad_v.to(device)
+
             return -0.5 * R @ (g_x @ grad_v.T)
         
-        compute_control_input = control_input_ip
+        compute_control_input = control_input_dicp
+
+        if hparams['analytical_pretraining'] == 'xTQx':
+            Q = hparams['Q']
+            q11 = Q[0, 0]
+            q22 = Q[1, 1]
+            q33 = Q[2, 2]
+            q44 = Q[3, 3]
+
+            V_guess = lambda x: q11 * torch.square(x[:, 0]) + q22 * torch.square(x[:, 1]) + q33 * torch.square(x[:, 2]) + q44 * torch.square(x[:, 3])
+        elif hparams['analytical_pretraining'] == 'LQR':
+            pass # TODO
+
+        def pde_residual_ip(x: torch.Tensor, grad_v: torch.Tensor):
+                x1 = x[:, 0]
+                x2 = x[:, 1]
+                x3 = x[:, 2]
+                x4 = x[:, 3]
+                V_x1 = grad_v[:, 0]
+                V_x2 = grad_v[:, 1]
+                V_x3 = grad_v[:, 2]
+                V_x4 = grad_v[:, 3]
+
+                Q = hparams['Q']
+                R = hparams['R']
+                q11 = Q[0, 0]
+                q22 = Q[1, 1]
+                q33 = Q[2, 2]
+                q44 = Q[3, 3]
+                r11 = R[0, 0]
+                r22 = R[1, 1]
+
+                term1 = q11 * x1**2
+                term2 = - (1 / (4 * m_cart**2 * r11)) * (V_x2*2)
+                term3 = + (cart_height / (2 * l**2 * m_cart * m * r11)) * (V_x2 * V_x4)   # minus minus = plus
+                term4 = + x4 * V_x3   # minus(-x4*V_x3)
+                term5 = - (1/(4*l**4*m**2*r22) + cart_height**2/(4*l**4*m**2*r11)) * (V_x4*2)
+                term6 = - (gravity * torch.sin(x3) / l) * V_x4
+                term7 = + x2 * V_x1                                          # minus(-x2*V_x1)
+                term8 = q22 * x2**2
+                term9 = q33 * x3**2
+                term10 = q44 * x4**2
+
+                return term1 + term2 + term3 + term4 + term5 + term6 + term7 + term8 + term9 + term10
+
+        compute_pde_residual = pde_residual_ip
 
     else:
         raise ValueError(f"Unknown Problem '{problem}' entered")
@@ -255,9 +310,9 @@ def train(hparams=hparams):
         is_pinn = False
 
     if is_pinn:
-        model = Pinn(in_dim=2, out_dim=1, hparams=hparams).to(device)
+        model = Pinn(in_dim=hparams['in_dim'], out_dim=hparams['out_dim'], hparams=hparams).to(device)
     else:
-        model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
+        model = ValueFunctionModel(in_dim=hparams['in_dim'], out_dim=hparams['out_dim'], hparams=hparams).to(device)
 
     model.train()
 
@@ -541,9 +596,9 @@ if __name__ == '__main__':
         filename = os.path.join(models_dir, f"{hparams['problem']}_{hparams['architecture']}_{hidden_units_str}_{activation_name}.pt")
         
         if 'pinn' in hparams['architecture'].lower():
-            model = Pinn(in_dim=2, out_dim=1, hparams=hparams).to(device)
+            model = Pinn(in_dim=hparams["in_dim"], out_dim=1, hparams=hparams).to(device)
         else:
-            model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
+            model = ValueFunctionModel(in_dim=hparams["in_dim"], out_dim=1, hparams=hparams).to(device)
         
         model.load_state_dict(torch.load(filename, map_location=device))
         # run = None

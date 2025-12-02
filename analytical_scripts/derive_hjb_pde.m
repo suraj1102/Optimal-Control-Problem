@@ -1,12 +1,12 @@
 clear; clc; close;
 
 % Define symbolic variables
-syms x1 x2 u1 real
+syms x1 x2 x3 x4 u1 u2 real
 x = [x1; x2];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "inverted-pendulum";
+problem = "double-input-cart-pole";
 
 if problem == "nonlinear-dynamics"
     Q = [1 0; 0 1];
@@ -52,12 +52,8 @@ elseif problem == "double-integrator"
 
 elseif problem == "inverted-pendulum"
     % x1 -> theta | x2 -> dot(theta)
-    Q = [1 0; 0 0.1];
-    R = 1;
-
-    % g = 9.81;
-    % l = 1;
-    % m = 1;
+    Q = [100 0; 0 1];
+    R = 10;
 
     syms g l m real
 
@@ -71,6 +67,39 @@ elseif problem == "inverted-pendulum"
         1 / (m*l*l)
     ];
 
+elseif problem == "double-input-cart-pole"
+    syms q11 q22 q33 q44 real
+    syms r11 r22 real
+
+    Q = [q11 0 0 0;
+        0 q22 0 0;
+        0 0 q33 0;
+        0 0 0 q44
+        ];
+
+    R = [r11 0;
+        0 r22];
+
+    syms g l m_p m_c y real
+
+    f_x = [
+        x2;
+        0;
+        x4;
+        -(g/l) * sin(x3);
+    ];
+
+    g_x = [
+        0 0;
+        1/m_c 0;
+        0 0;
+        -y/(m_p * l*l) -1/(m_p * l*l)
+    ];
+
+    x = [x1 x2 x3 x4]';
+    u = [u1 u2]';
+    
+
 else
     error("Unknown problem identifier: " + problem);
 end
@@ -79,7 +108,7 @@ end
 % ---------- SCRIPT ------------
 
 % Define LQR Loss
-L = x'*Q*x + u*R*u;
+L = x'*Q*x + u'*R*u;
 
 % Define value function V symbolically
 syms V real
@@ -89,38 +118,53 @@ assumeAlso(V, 'real')
 n = length(x);  % number of states
 V_x = sym('V_x', [n, 1], 'real');  % Create symbolic gradient vector
 assume(V_x, 'real');
-
-% Define Hamilton-Jacobi-Bellman (HJB) equation
+% --- Compute Hamiltonian ---
 HJB = -V_x' * (f_x + g_x * u) - L;
 
+% --- Differentiate HJB wrt u1 and u2 ---
+dHJB_du = [
+    diff(HJB, u1);
+    diff(HJB, u2)
+];
 
-% Differentiate HJB with respect to control input u
-dHJB_du = real(diff(HJB, u));
+% --- Solve for optimal control u* ---
+u_star_struct = solve(dHJB_du == 0, [u1 u2], 'ReturnConditions', false);
 
+u_star = [
+    u_star_struct.u1;
+    u_star_struct.u2
+];
 
-% Solve for optimal control input u*
-u_star = solve(dHJB_du == 0, u, 'ReturnConditions', false);
-
-% Substitute optimal control input into HJB equation
+% --- Substitute u* back into HJB ---
 HJB = simplify(subs(HJB, u, u_star));
-HJB = simplify(expand(HJB), 'Steps', 50); % Computes the products
-HJB = collect(HJB, V_x); % Groups by the terms 
+HJB = simplify(expand(HJB), 'Steps', 50);
+HJB = collect(HJB, V_x)
 
-% ------------ End of script --------------
-% The rest is just to clean the output
+% % --- Cleanup section (no real(), no diff(V,x)) ---
+% for i = 1:length(x)
+%     % remove real(x(i))
+%     HJB    = subs(HJB, real(x(i)), x(i));
+%     u_star = subs(u_star, real(x(i)), x(i));
+% 
+%     % replace gradient diff(V,x(i)) with V_x(i)
+%     HJB    = subs(HJB, sym(['diff(V, x' num2str(i) ')']), V_x(i));
+%     u_star = subs(u_star, sym(['diff(V, x' num2str(i) ')']), V_x(i));
+% end
+% 
+HJB = -HJB;  % match paper convention
 
-% Remove real() wrappers from x1, x2, and V_x entries
-for i = 1:length(x)
-    HJB = subs(HJB, real(x(i)), x(i));
-    eval(['syms V_x' num2str(i) ' real']);
-    HJB = subs(HJB, real(diff(V, x(i))), eval(['V_x' num2str(i)]));
-    u_star = subs(u_star, real(x(i)), x(i));
-    u_star = subs(u_star, real(diff(V, x(i))), eval(['V_x' num2str(i)]));
-end
-
-HJB = -HJB; % Stored in this format in paper
+% Generate LaTeX
 HJB_latex = latex(HJB);
+ 
+% Display results
+disp('Optimal control u*:');
 disp(u_star);
+ 
+disp('u* (LaTeX):');
 disp(latex(u_star));
+ 
+disp('HJB PDE:');
 disp(HJB);
+ 
+disp('HJB (LaTeX):');
 disp(HJB_latex);
