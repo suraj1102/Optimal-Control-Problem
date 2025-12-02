@@ -2,10 +2,10 @@ import numpy as np
 from utils import * 
 
 hparams = {
-    'problem': 'double-input-cart-pole',
-    'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
+    'problem': 'inverted-pendulum',
+    'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx', # None, xTQx
-    'in_dim': 4,
+    'in_dim': 2,
     'out_dim': 1,
     'hidden_units': [50],
     'activation': nn.SiLU,
@@ -18,18 +18,23 @@ hparams = {
     'patience': 100, # For reduce-on-plateau scheduler
     'gamma': 0.99, # For exponential scheduler
     'n_epochs': 10_000,
-    'early_stopping': 500, # Indicates patience (in no. of epochs), -1 means no early stopping
+    'early_stopping': -1, # Indicates patience (in no. of epochs), -1 means no early stopping
     'log_wandb': False,
     'plot_graphs': True,
-    'save_model': True,
+    'save_model': False,
     'model_save_path': 'trained_model_di.pth',
 
-    'Q': np.matrix([[5.0, 0.0, 0.0, 0.0], 
-    [0.0, 1.0, 0.0, 0.0],
-    [0.0, 0.0, 100.0, 0.0],
-    [0.0, 0.0, 0.0, 1.0]]),
-    'R': np.matrix([[10.0, 0.0],
+    'Q': np.matrix([[100.0, 0.0], 
     [0.0, 1.0]]),
+    'R': np.matrix([[1]]),
+    
+    # 'Q': np.matrix([[5.0, 0.0, 0.0, 0.0], 
+    # [0.0, 1.0, 0.0, 0.0],
+    # [0.0, 0.0, 100.0, 0.0],
+    # [0.0, 0.0, 0.0, 1.0]]),
+    # 'R': np.matrix([[10.0, 0.0],
+    # [0.0, 1.0]]),
+
     'mass': 0.2,
     'mass_cart': 1.0,
     'cart_height': 0.4,

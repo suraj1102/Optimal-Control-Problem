@@ -12,7 +12,7 @@ class ValueFunctionModel(nn.Module):
         super().__init__()
         self.hparams = hparams
         hidden_units = hparams['hidden_units']
-        self.x_bc = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=device)
+        self.x_bc = torch.zeros((1, in_dim), dtype=torch.float32, device=device)
         self.v_bc = torch.tensor([[0.0]], dtype=torch.float32, device=device)
 
         # Use ModuleList so submodules are registered and moved when calling .to(device)

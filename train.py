@@ -590,9 +590,9 @@ if __name__ == '__main__':
         filename = os.path.join(models_dir, f"{hparams['problem']}_{hparams['architecture']}_{hidden_units_str}_{activation_name}.pt")
         
         if 'pinn' in hparams['architecture'].lower():
-            model = Pinn(in_dim=2, out_dim=1, hparams=hparams).to(device)
+            model = Pinn(in_dim=hparams["in_dim"], out_dim=1, hparams=hparams).to(device)
         else:
-            model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
+            model = ValueFunctionModel(in_dim=hparams["in_dim"], out_dim=1, hparams=hparams).to(device)
         
         model.load_state_dict(torch.load(filename, map_location=device))
         run = None
