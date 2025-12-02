@@ -153,14 +153,18 @@ def set_problem_parameters():
 
             grad_v = grad_v.to(device)
 
-
             return -0.5 * R @ (g_x @ grad_v.T)
         
         compute_control_input = control_input_dicp
 
         if hparams['analytical_pretraining'] == 'xTQx':
-            Q = torch.tensor(np.asarray(hparams['Q']), device=device)
-            V_guess = lambda x: torch.matmul(torch.matmul(x, Q.to(torch.float32)), x.T)
+            Q = hparams['Q']
+            q11 = Q[0, 0]
+            q22 = Q[1, 1]
+            q33 = Q[2, 2]
+            q44 = Q[3, 3]
+
+            V_guess = lambda x: q11 * torch.square(x[:, 0]) + q22 * torch.square(x[:, 1]) + q33 * torch.square(x[:, 2]) + q44 * torch.square(x[:, 3])
         elif hparams['analytical_pretraining'] == 'LQR':
             pass # TODO
 
@@ -330,7 +334,7 @@ def train(hparams=hparams):
         optimizer.zero_grad()
 
         # Sample points
-        x_colloc = sample_inputs(n_sample=hparams['n_colloc'])
+        x_colloc = sample_inputs(n_sample=hparams['n_colloc'], dim=hparams['in_dim'], edge_weight=hparams['edge_sampling_weight'], input_range=hparams['input_range'])
         x_colloc.requires_grad_(True)
 
         # Forward pass and residual calculation
