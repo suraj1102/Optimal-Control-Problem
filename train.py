@@ -14,9 +14,10 @@ SHOW_TEST_PLOT = True
 
 V_guess = None
 V_exact = None
-m = 0.2
-l = 1
-gravity = 9.81
+
+m = hparams.get('mass', 1)
+l = hparams.get('length', 1)
+gravity = hparams.get('gravity', 9.81)
 
 # Properly initialize pde_residual with a default placeholder function - for LSP and autocomplete
 def default_pde_residual(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
@@ -83,8 +84,8 @@ def set_problem_parameters():
         compute_pde_residual = pde_residual_di
 
         def control_input_di(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
-            Q = 0.5 * torch.tensor([[1.0, 0.0], [0.0, 1.0]], device=device)
-            R = 0.5 * torch.tensor([[1.0]], device=device)
+            Q = torch.tensor(np.asarray(hparams['Q']), device=device)
+            R = torch.tensor(np.asarray(hparams['R']), device=device)
 
             f_x = torch.stack([
                 x[:, 1],
@@ -116,8 +117,12 @@ def set_problem_parameters():
             x2 = x[:, 1]
             V_x1 = grad_v[:, 0]
             V_x2 = grad_v[:, 1]
-            term1 = V_x1 * x2 + torch.square(x1) + torch.square(x2) / 10 
-            term2 = - torch.square(V_x2) / (4 * l**4 * m**2)
+
+            Q = hparams['Q']
+            R = hparams['R']
+
+            term1 = V_x1 * x2 + torch.square(x1) * Q[0, 0] + torch.square(x2) * Q[1, 1] 
+            term2 = - torch.square(V_x2) / (4 * l**4 * m**2 * R[0, 0])
             term3 = V_x2 * gravity * torch.sin(x1) / l
             return term1 + term2 + term3
 
@@ -230,7 +235,12 @@ def early_stopping(pde_loss: float, patience: int = hparams['early_stopping']) -
     return early_stopping.epochs_without_improvement >= patience
 
 
-def save_model(model: torch.nn.Module, filename: str):
+def save_model(model: torch.nn.Module, filename: str, hparams):
+    activation_name = hparams['activation'].__name__ if hasattr(hparams['activation'], "__name__") else str(hparams['activation'])
+    hidden_units_str = str(hparams['hidden_units'])
+    models_dir = "models"
+    os.makedirs(models_dir, exist_ok=True)
+    filename = os.path.join(models_dir, f"{hparams['problem']}_{hparams['architecture']}_{hidden_units_str}_{activation_name}.pt")
     torch.save(model.state_dict(), filename)
     print(f"Model saved to {filename}")
 
@@ -320,7 +330,7 @@ def train(hparams=hparams):
                 break
 
     if hparams['save_model']:
-        save_model(model, hparams['model_save_path'])
+        save_model(model, None, hparams)
     
     return model, (run if LOG_WANDB else None), pde_loss.item(), boundary_loss.item()
 
@@ -429,10 +439,13 @@ def test_pendulum_stability(model: ValueFunctionModel, inital_conditions=[0.1, 0
 
         x_dot = f_x + g_x * control_input
         x = x + x_dot * dt  # Update state using Euler integration
+
+        # Wrap angle x1 to [-pi, pi] so that x=2pi is equivalent to x=0
+        x[:, 0] = (x[:, 0] + np.pi) % (2 * np.pi) - np.pi
+
         trajectory.append(x.clone().detach())
         u_vals.append(control_input.clone().detach())
 
-        
     trajectory = torch.stack(trajectory)  # Convert trajectory to a tensor for analysis
     u_vals = torch.stack(u_vals)
     # Plot the trajectory
@@ -451,6 +464,8 @@ def test_pendulum_stability(model: ValueFunctionModel, inital_conditions=[0.1, 0
     plt.grid()
     plt.show()
 
+    print("Final State:", trajectory[-1, 0, :])
+
 
 def test_double_integrator_stability(model: ValueFunctionModel, no_input=False):
     initial_states = torch.tensor([[0.3, 0.3]], device=device) # x1, x2 = theta, dot(theta)
@@ -458,7 +473,7 @@ def test_double_integrator_stability(model: ValueFunctionModel, no_input=False):
     # Control Loop
     x = initial_states
     time_horizon = 1000  # Set a large time horizon
-    dt = 0.01  # Time step for simulation
+    dt = 0.001  # Time step for simulation
     trajectory = [x.clone().detach()]  # Store the trajectory for analysis
 
     for _ in range(time_horizon):
@@ -508,12 +523,33 @@ if __name__ == '__main__':
     #     hparams['hidden_units'] = hu
     #     for activation in tqdm(activations, desc="Activations Progress", unit="activation", leave=False):
     # hparams['activation'] = activation
-    model, run, _, _ = train(hparams)
+
+    LOAD = hparams['LOAD_MODEL']
+
+    if not LOAD:
+        model, run, _, _ = train(hparams)
+    else:
+        activation_name = hparams['activation'].__name__ if hasattr(hparams['activation'], "__name__") else str(hparams['activation'])
+        hidden_units_str = str(hparams['hidden_units'])
+        models_dir = "models"
+        filename = os.path.join(models_dir, f"{hparams['problem']}_{hparams['architecture']}_{hidden_units_str}_{activation_name}.pt")
+        
+        if 'pinn' in hparams['architecture'].lower():
+            model = Pinn(in_dim=2, out_dim=1, hparams=hparams).to(device)
+        else:
+            model = ValueFunctionModel(in_dim=2, out_dim=1, hparams=hparams).to(device)
+        
+        model.load_state_dict(torch.load(filename, map_location=device))
+        run = None
+        print(f"Loaded model from {filename}")
+
+    set_problem_parameters()
+        
     if run:
         print("Going into Test")
     test(model, run, hparams)
     if hparams['problem'] == 'inverted-pendulum':
-        test_pendulum_stability(model, [0.1, -0.3])
+        test_pendulum_stability(model, [0.1, 0.3])
         pass
     elif hparams['problem'] == 'double-integrator':
         test_double_integrator_stability(model)

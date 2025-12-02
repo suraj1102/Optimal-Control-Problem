@@ -48,3 +48,4 @@ env.bak/
 venv.bak/
 
 *.png
+*.pt
