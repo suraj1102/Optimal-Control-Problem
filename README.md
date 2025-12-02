@@ -9,3 +9,5 @@
 - [ ] Add other control problems into the model
 - [x] Add functionality to set hparams from terminal so we can train multiple problems simultaneously.
 - [x] Add a PINN model 
+
+- [] Change v_guess to be dependent on Q
