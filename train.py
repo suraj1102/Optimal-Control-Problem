@@ -264,10 +264,7 @@ def train(hparams=hparams):
     if hparams['log_wandb']:
         run = start_wandb_run()
 
-    if hparams['analytical_pretraining'] and V_guess is None:
-        raise ValueError("V_guess is not defined for the selected analytical pretraining method.")
-
-    if hparams['analytical_pretraining']:
+    if hparams['analytical_pretraining'] not in ['None', None]:
         model.xTQx_analytical_pretraning(V_guess)
 
     if not is_pinn:

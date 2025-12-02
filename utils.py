@@ -12,6 +12,7 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+print(f"Using device: {device}")
 
 
 def sample_inputs(n_sample = 5, dim = 2, edge_weight = 0.2, input_range = (-1, 1)):

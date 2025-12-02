@@ -12,7 +12,7 @@ hparams['save_plot'] = False
 ## HYPERPARAMETER GRID
 hidden_units_options = [[10], [50], [100], [400], [10, 10], [30, 30]]
 activation_options = [nn.SiLU, nn.ReLU, nn.Tanh, nn.Sigmoid]
-analytical_pretraining_options = ['xTQx', 'None', 'LQR']
+analytical_pretraining_options = ['xTQx']
 architecture_options = ['xtfc', 'xtfc-w-bias', 'xtfc-unfreeze', 'pinn']
 
 for hidden_units in hidden_units_options:
@@ -21,11 +21,11 @@ for hidden_units in hidden_units_options:
             for architecture in architecture_options:
                 hparams['hidden_units'] = hidden_units
                 hparams['activation'] = activation
-                hparams['analytical_pretraining'] = analytical_pretraining if architecture != 'pinn' else 'None'
+                hparams['analytical_pretraining'] = analytical_pretraining if architecture != 'pinn' else None
                 hparams['architecture'] = architecture
 
                 print(f"Training with hidden_units={hidden_units}, activation={activation.__name__}, "
                       f"analytical_pretraining={analytical_pretraining}, architecture={architecture}")
 
                 model, run, _, _ = train(hparams)
-                test(model, run, hparams)
+                # test(model, run, hparams)
