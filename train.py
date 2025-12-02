@@ -48,7 +48,7 @@ def start_wandb_run():
         name=f"{hparams['problem']}-{hparams['architecture']}-{hparams_to_log['activation']}-{time.strftime('%d%m%Y-%H%M%S')}",
         reinit=True,
         resume=False,
-        tags=f"{hparams['problem']}-{hparams['architecture']}"
+        tags=[f"{hparams['problem']}-{hparams['architecture']}"]
     )
     return run
 
