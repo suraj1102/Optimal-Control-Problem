@@ -19,15 +19,13 @@ for hidden_units in hidden_units_options:
     for activation in activation_options:
         for analytical_pretraining in analytical_pretraining_options:
             for architecture in architecture_options:
-                # Update hyperparameters
                 hparams['hidden_units'] = hidden_units
                 hparams['activation'] = activation
-                hparams['analytical_pretraining'] = analytical_pretraining
+                hparams['analytical_pretraining'] = analytical_pretraining if architecture != 'pinn' else 'None'
                 hparams['architecture'] = architecture
 
                 print(f"Training with hidden_units={hidden_units}, activation={activation.__name__}, "
                       f"analytical_pretraining={analytical_pretraining}, architecture={architecture}")
 
-                # Train and evaluate the model with the current set of hyperparameters
-                model = train(hparams)
-                test(model, None, hparams)  # Assuming 'run' is not needed for this context
+                model, run, _, _ = train(hparams)
+                test(model, run, hparams)

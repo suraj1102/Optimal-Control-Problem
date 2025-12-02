@@ -15,8 +15,8 @@ hparams = {
     'Scheduler': 'None',
     'patience': 100, # For reduce-on-plateau scheduler
     'gamma': 0.99, # For exponential scheduler
-    'n_epochs': 20_000,
-    'early_stopping': 1000, # Indicates patience (in no. of epochs), -1 means no early stopping
+    'n_epochs': 10_000,
+    'early_stopping': 500, # Indicates patience (in no. of epochs), -1 means no early stopping
     'log_wandb': False,
     'plot_graphs': False,
     'save_model': False,
