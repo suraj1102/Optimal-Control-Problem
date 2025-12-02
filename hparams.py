@@ -2,9 +2,11 @@ import numpy as np
 from utils import * 
 
 hparams = {
-    'problem': 'inverted-pendulum',
+    'problem': 'double-input-cart-pole',
     'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx', # None, xTQx
+    'in_dim': 4,
+    'out_dim': 1,
     'hidden_units': [50],
     'activation': nn.SiLU,
     'n_colloc': 5_000,
@@ -22,9 +24,15 @@ hparams = {
     'save_model': True,
     'model_save_path': 'trained_model_di.pth',
 
-    'Q': np.matrix([[100.0, 0.0], [0.0, 1.0]]),
-    'R': np.matrix([[1.0]]),
+    'Q': np.matrix([[5.0, 0.0, 0.0, 0.0], 
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 100.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0]]),
+    'R': np.matrix([[10.0, 0.0],
+    [0.0, 1.0]]),
     'mass': 0.2,
+    'mass_cart': 1.0,
+    'cart_height': 0.4,
     'length': 1.0,
     'gravity': 9.81,
     'LOAD_MODEL': False,
