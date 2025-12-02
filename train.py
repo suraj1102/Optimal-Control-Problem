@@ -280,7 +280,7 @@ def train(hparams=hparams):
         optimizer.zero_grad()
 
         # Sample points
-        x_colloc = sample_inputs(n_sample=hparams['n_colloc'])
+        x_colloc = sample_inputs(n_sample=hparams['n_colloc'], dim=hparams.get('in_dim', 2), edge_weight=hparams.get('edge_sampling_weight', 0.2), input_range=hparams.get('input_range', (-1, 1))).to(device)
         x_colloc.requires_grad_(True)
 
         # Forward pass and residual calculation
