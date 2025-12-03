@@ -135,8 +135,8 @@ def set_problem_parameters():
         V_exact = lambda x1, x2: 0
 
         def control_input_dicp(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
-            Q = torch.tensor(np.asarray(hparams['Q']), device=device)
-            R = torch.tensor(np.asarray(hparams['R']), device=device)
+            Q = torch.tensor(np.asarray(hparams['Q'], dtype=np.float32), device=device)
+            R = torch.tensor(np.asarray(hparams['R'], dtype=np.float32), device=device)
 
             f_x = torch.stack([
                 x[:, 1],
@@ -150,11 +150,10 @@ def set_problem_parameters():
                 [torch.ones_like(x[:, 0], device=device) / m_cart, torch.zeros_like(x[:, 0], device=device)],
                 [torch.zeros_like(x[:, 0], device=device), torch.zeros_like(x[:, 0], device=device)],
                 [torch.ones_like(x[:, 0], device=device) * cart_height / (-m * l * l), torch.ones_like(x[:, 0], device=device) / (-m * l * l)]
-            ])
+            ], device=device)
 
             grad_v = grad_v.to(device)
-
-            return -0.5 * R @ (g_x @ grad_v.T)
+            return -0.5 * torch.linalg.inv(R) @ (g_x.T @ grad_v.T)
         
         compute_control_input = control_input_dicp
 
@@ -570,6 +569,70 @@ def test_double_integrator_stability(model: ValueFunctionModel, no_input=False):
     plt.grid()
     plt.show()
 
+
+def test_dicp_stability(model: ValueFunctionModel, initial_conditions=[0.0, 0.0, 0.0, 0.0], no_input=False):
+    initial_states = torch.tensor([initial_conditions], device=device) # x, xdot, theta, thetadot
+    
+    # Control Loop
+    x = initial_states
+    time_horizon = 1_000  # Set a large time horizon
+    dt = 0.01  # Time step for simulation
+    trajectory = [x.clone().detach()]  # Store the trajectory for analysis
+    u1_vals = []  
+    u2_vals = []
+
+    for _ in range(time_horizon):
+        g_x, g_0, v, grad_v = model.get_outputs(x)
+        control_input = compute_control_input(x, grad_v)
+        if no_input:
+            control_input = torch.tensor([[0.0], [0.0]], device=device)
+        
+        f_x = torch.stack([
+            x[:, 1],
+            torch.zeros_like(x[:, 0], device=device),
+            x[:, 3],
+            -(gravity / l) * torch.sin(x[:, 2])
+        ], dim=1) 
+
+        g_x = torch.tensor([ 
+            [torch.zeros_like(x[:, 0], device=device), torch.zeros_like(x[:, 0], device=device)],
+            [torch.ones_like(x[:, 0], device=device) / m_cart, torch.zeros_like(x[:, 0], device=device)],
+            [torch.zeros_like(x[:, 0], device=device), torch.zeros_like(x[:, 0], device=device)],
+            [torch.ones_like(x[:, 0], device=device) * cart_height / (-m * l * l), torch.ones_like(x[:, 0], device=device) / (-m * l * l)]
+        ], device=device)
+
+        x_dot = f_x + (g_x @ control_input).T
+        x = x + x_dot * dt  # Update state using Euler integration
+
+        # Wrap angle x1 to [-pi, pi] so that x=2pi is equivalent to x=0
+        x[:, 2] = (x[:, 2] + np.pi) % (2 * np.pi) - np.pi
+
+        trajectory.append(x.clone().detach())
+        u1_vals.append(control_input.clone().detach()[0, :])
+        u2_vals.append(control_input.clone().detach()[1, :])
+
+    trajectory = torch.stack(trajectory)  # Convert trajectory to a tensor for analysis
+    # Plot the trajectory
+    trajectory = trajectory.cpu().numpy()  # Convert to numpy for plotting
+    time_steps = np.arange(len(trajectory)) * dt
+
+    u1_vals = torch.stack(u1_vals).cpu().numpy()
+    u2_vals = torch.stack(u2_vals).cpu().numpy()
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(time_steps, trajectory[:, 0, 0], label="x", color="tab:cyan")
+    plt.plot(time_steps, trajectory[:, 0, 1], label="xdot", color="tab:gray")
+    plt.plot(time_steps, trajectory[:, 0, 2], label="theta", color="tab:blue")
+    plt.plot(time_steps, trajectory[:, 0, 3], label="thetadot", color="tab:orange")
+    plt.plot(time_steps[:-1], u1_vals, label="F", color="tab:red")
+    plt.plot(time_steps[:-1], u2_vals, label="M", color="tab:pink")
+    plt.xlabel("Time (s)")
+    plt.ylabel("State")
+    plt.title("Time vs Trajectory")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
 # Fixing the train function call in the main block
 if __name__ == '__main__':
     if LOG_WANDB:
@@ -608,9 +671,11 @@ if __name__ == '__main__':
         
     if run:
         print("Going into Test")
-    test(model, run, hparams)
+    # test(model, run, hparams)
     if hparams['problem'] == 'inverted-pendulum':
         test_pendulum_stability(model, [0.1, 0.3])
         pass
     elif hparams['problem'] == 'double-integrator':
         test_double_integrator_stability(model)
+    elif hparams['problem'] == 'double-input-cart-pole':
+        test_dicp_stability(model)
