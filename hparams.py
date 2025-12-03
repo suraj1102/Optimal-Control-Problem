@@ -2,22 +2,22 @@ import numpy as np
 from utils import * 
 
 hparams = {
-    'problem': 'inverted-pendulum',
-    'architecture': 'xtfc', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
+    'problem': 'inverted-pendulum', # double-integrator, inverted-pendulum, double-input-cart-pole, nonlinear-dynamics
+    'architecture': 'xtfc-unfreeze', # xtfc, xtfc-w-bias, xtfc-unfreeze, pinn
     'analytical_pretraining': 'xTQx', # None, xTQx
     'in_dim': 2,
     'out_dim': 1,
     'hidden_units': [50],
     'activation': nn.SiLU,
     'n_colloc': 5_000,
-    'input_range': (-np.pi/6, np.pi/6),
+    'input_range': (-np.pi/6, np.pi/6), 
     'edge_sampling_weight': 0.3,
     'lr': 1e-3,
     'optimizer': 'ADAM', # ADAM or LBFGS
     'Scheduler': 'None',
     'patience': 100, # For reduce-on-plateau scheduler
     'gamma': 0.99, # For exponential scheduler
-    'n_epochs': 20_000,
+    'n_epochs': 10_000,
     'early_stopping': -1, # Indicates patience (in no. of epochs), -1 means no early stopping
     'log_wandb': False,
     'plot_graphs': True,
