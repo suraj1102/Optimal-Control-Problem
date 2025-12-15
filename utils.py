@@ -39,7 +39,7 @@ def compute_V_pred_and_exact(model, V_exact_func, n_points=200, hparams=None):
 
     nx = n_points
     x1 = np.linspace(hparams['input_range'][0], hparams['input_range'][1], nx)
-    x2 = np.linspace(-1, 1, nx)
+    x2 = np.linspace(hparams['input_range'][0], hparams['input_range'][1], nx)
     X1, X2 = np.meshgrid(x1, x2)
     X = np.vstack([X1.ravel(), X2.ravel()]).T
     X_tensor = torch.tensor(X, dtype=torch.float32, device=device)

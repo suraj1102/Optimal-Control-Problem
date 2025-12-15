@@ -109,11 +109,30 @@ def set_problem_parameters():
         pass # TODO
 
     elif problem == 'inverted-pendulum':
-        V_exact = lambda x1, x2: 0.0
+        V_exact = None
         if hparams['analytical_pretraining'] == 'xTQx':
             V_guess = lambda x: 0.5 * torch.square(x[:, 0:1] + x[:, 1:2])
         elif hparams['analytical_pretraining'] == 'LQR':
             pass # TODO
+
+        def control_input_ip(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
+            Q = torch.tensor([[100.0, 0.0], [0.0, 1.0]], device=device)
+            R = torch.tensor([[1.0]], device=device)
+
+            f_x = torch.stack([
+                x[:, 1],
+                gravity / l * torch.sin(x[:, 0])
+            ], dim=1)
+
+            g_x = torch.stack([
+                torch.zeros_like(x[:, 0], device=device),
+                torch.ones_like(x[:, 0], device=device) / (m * l * l)
+            ], dim=1)
+
+            grad_v = grad_v.to(device)
+            return -0.5 * R @ (g_x @ grad_v.T)
+        
+        compute_control_input = control_input_ip
 
         def pde_residual_ip(x: torch.Tensor, grad_v: torch.Tensor):
             x1 = x[:, 0]
@@ -507,15 +526,14 @@ def test_pendulum_stability(model: ValueFunctionModel, inital_conditions=[0.1, 0
         u_vals.append(control_input.clone().detach())
 
     trajectory = torch.stack(trajectory)  # Convert trajectory to a tensor for analysis
-    u_vals = torch.stack(u_vals)
+    u_vals = torch.stack(u_vals).cpu().numpy()
     # Plot the trajectory
     trajectory = trajectory.cpu().numpy()  # Convert to numpy for plotting
-    u_vals = u_vals.cpu().numpy()
     time_steps = np.arange(len(trajectory)) * dt
 
     plt.figure(figsize=(10, 6))
-    plt.plot(time_steps, trajectory[:, 0, 0], label="x1 (Position)", color="tab:blue")
-    plt.plot(time_steps, trajectory[:, 0, 1], label="x2 (Velocity)", color="tab:orange")
+    plt.plot(time_steps, trajectory[:, 0, 0], label="x1", color="tab:blue")
+    plt.plot(time_steps, trajectory[:, 0, 1], label="x2", color="tab:orange")
     plt.plot(time_steps[:-1], u_vals[:, 0, 0], label="u", color="tab:red")
     plt.xlabel("Time (s)")
     plt.ylabel("State")
@@ -671,7 +689,7 @@ if __name__ == '__main__':
         
     if run:
         print("Going into Test")
-    # test(model, run, hparams)
+    test(model, run, hparams)
     if hparams['problem'] == 'inverted-pendulum':
         test_pendulum_stability(model, [0.1, 0.3])
         pass
