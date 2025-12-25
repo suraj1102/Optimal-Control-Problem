@@ -37,6 +37,11 @@ class double_integrator(problem):
         self.f_x = self.f_x_di
         self.g_x = self.g_x_di
 
+    def test_stability(self, trajectory, dt=0.01, title="Double Integrator Stability Test", control_inputs=None):
+        state_labels = ['x1 (Position)', 'x2 (Velocity)']
+        control_labels = ['u (Control Input)']
+        super().test_stability(trajectory, dt, state_labels, title, control_inputs, control_labels)
+
     def f_x_di(self, x: torch.Tensor) -> torch.Tensor:
         # Drift term for double integrator: \dot{x} = [x2, 0] + [0, 1] * u
         return torch.stack([

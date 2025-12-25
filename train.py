@@ -150,6 +150,38 @@ def set_problem_parameters():
 
         compute_pde_residual = pde_residual_ip
 
+    elif problem == 'double-input-control-problem':
+        V_exact = None
+        if hparams['analytical_pretraining'] == 'xTQx':
+            Q = hparams['Q']
+            V_guess = lambda x: 0.5 * (Q[0,0] * torch.square(x[:, 0]) + Q[1,1] * torch.square(x[:, 1]))
+        elif hparams['analytical_pretraining'] == 'LQR':
+            pass # TODO
+
+        def control_input_dicp(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
+            Q = torch.tensor(np.asarray(hparams['Q']), device=device)
+            R = torch.tensor(np.asarray(hparams['R']), device=device)
+
+            # For dicp, g_x = I, so g_x.T @ grad_v.T = grad_v.T
+            grad_v = grad_v.to(device)
+            u_T = - torch.linalg.solve(R, grad_v.T)
+            return u_T.T  # Shape: (batch, out_dim)
+        
+        compute_control_input = control_input_dicp
+
+        def pde_residual_dicp(x: torch.Tensor, grad_v: torch.Tensor):
+            x1 = x[:, 0]
+            x2 = x[:, 1]
+            V_x1 = grad_v[:, 0]
+            V_x2 = grad_v[:, 1]
+            
+            Q = hparams['Q']
+            term1 = -0.5 * (Q[0,0] * torch.square(x1) + Q[1,1] * torch.square(x2))
+            term2 = 0.5 * (torch.square(V_x1) + torch.square(V_x2))
+            return term1 + term2
+        
+        compute_pde_residual = pde_residual_dicp
+
     elif problem == 'double-input-cart-pole':
         V_exact = lambda x1, x2: 0
 

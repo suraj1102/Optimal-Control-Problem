@@ -9,7 +9,7 @@ class inverted_pendulum(problem):
         self.hidden_units = [64, 64, 64]
         self.activation = nn.Tanh()
         self.n_colloc = 1000
-        self.input_range = [-1.0, 1.0]
+        self.input_range = [-np.pi / 6, np.pi / 6]
         self.edge_sampling_weight = 0.0
         self.lr = 1e-3
         self.optimizer = "ADAM"
@@ -39,6 +39,11 @@ class inverted_pendulum(problem):
         self.compute_control_input = self.control_input
         self.f_x = self.f_x_ip
         self.g_x = self.g_x_ip
+
+    def test_stability(self, trajectory, dt=0.01, title="Inverted Pendulum Stability Test", control_inputs=None):
+        state_labels = ['theta (Angle)', 'thetadot (Angular Velocity)']
+        control_labels = ['u (Torque)']
+        super().test_stability(trajectory, dt, state_labels, title, control_inputs, control_labels)
 
     def f_x_ip(self, x: torch.Tensor) -> torch.Tensor:
         # Drift term for inverted pendulum: \dot{x} = [thetadot, (g/l) * sin(theta)]

@@ -5,6 +5,10 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import torch
 
+#TODO: implement multiple input ranges logic
+#      complete test stability logic in child classes
+#      dicp problem entirely  
+
 class problem:
     def __init__(self):
         #----------------------------------
@@ -68,8 +72,6 @@ class problem:
 
     def simulate_trajectory(self, model, initial_conditions, f_x_func, g_x_func, time_horizon=1000, dt=0.01, angle_wrap_indices=None):
             """
-            Generalized trajectory simulation. Subclasses must provide f_x_func and g_x_func.
-            
             Args:
                 model: Trained model
                 initial_conditions: List of initial state values
@@ -98,7 +100,7 @@ class problem:
                 if g_x.dim() == 2:  # Vector g_x (single control)
                     x_dot = f_x + g_x * control_input
                 elif g_x.dim() == 3:  # Matrix g_x (multiple controls)
-                    x_dot = f_x + (g_x @ control_input).T
+                    x_dot = f_x + g_x @ control_input
                 else:
                     raise ValueError("g_x must be 2D (vector) or 3D (matrix)")
                 
@@ -115,10 +117,9 @@ class problem:
             return trajectory.squeeze(1)  # Shape: (time_horizon+1, in_dim)
                 
 
-    def test_stability(trajectory, dt=0.01, state_labels=None, title="Stability Test", control_inputs=None, control_labels=None):
+    def test_stability(self, trajectory, dt=0.01, state_labels=None, title="Stability Test", control_inputs=None, control_labels=None):
         """
         Modular function to plot trajectory for stability testing.
-        
         Args:
             trajectory: Tensor of shape (time_steps, n_states) or (time_steps, batch_size, n_states)
             dt: Time step for x-axis
@@ -128,22 +129,22 @@ class problem:
             control_labels: List of labels for control inputs
         """
         
-# Generalize to handle any tensor dimension by flattening extra dimensions
-    # Assume first dim is time_steps, flatten the rest into features
-    if trajectory.dim() > 2:
-        trajectory = trajectory.reshape(trajectory.shape[0], -1)
-    elif trajectory.dim() == 1:
-        # If 1D, treat as single feature over time
-        trajectory = trajectory.unsqueeze(-1)
-    # Now trajectory is 2D: (time_steps, n_features)
-        
+        # Generalize to handle any tensor dimension by flattening extra dimensions
+        # Assume first dim is time_steps, flatten the rest into features
+        if trajectory.dim() > 2:
+            trajectory = trajectory.reshape(trajectory.shape[0], -1)
+        elif trajectory.dim() == 1:
+            # If 1D, treat as single feature over time
+            trajectory = trajectory.unsqueeze(-1)
+        # Now trajectory is 2D: (time_steps, n_features)
+            
         trajectory = trajectory.cpu().numpy()
         time_steps = np.arange(len(trajectory)) * dt
         n_states = trajectory.shape[1]
         
         # Default labels if not provided
         if state_labels is None:
-        state_labels = [f"Feature {i+1}" for i in range(n_states)]
+            state_labels = [f"Feature {i+1}" for i in range(n_states)]
         
         plt.figure(figsize=(10, 6))
         
@@ -154,11 +155,14 @@ class problem:
         
         # Plot control inputs if provided
         if control_inputs is not None:
-        # Generalize: flatten extra dimensions
-        if control_inputs.dim() > 2:
-            control_inputs = control_inputs.reshape(control_inputs.shape[0], -1)
-        elif control_inputs.dim() == 1:
-            control_inputs = control_inputs.unsqueeze(-1)
+            # Generalize: flatten extra dimensions
+            if control_inputs.dim() > 2:
+                control_inputs = control_inputs.reshape(control_inputs.shape[0], -1)
+            elif control_inputs.dim() == 1:
+                control_inputs = control_inputs.unsqueeze(-1)
+            
+            n_controls = control_inputs.shape[1]
+            control_inputs = control_inputs.cpu().numpy()
             
             if control_labels is None:
                 control_labels = [f"Control {i+1}" for i in range(n_controls)]
@@ -191,65 +195,3 @@ class problem:
         
 
 
-class double_integrator(problem):
-    def __init__(self):
-        super().__init__()
-        self.problem = "double-integrator"
-        self.architecture = "xtfc"
-        self.analytical_pretraining = "xTQx"
-        self.in_dim = 2
-        self.out_dim = 1
-        self.hidden_units = [64, 64, 64]
-        self.activation = nn.Tanh()
-        self.n_colloc = 1000
-        self.input_range = [-1.0, 1.0]
-        self.edge_sampling_weight = 0.0
-        self.lr = 1e-3
-        self.optimizer = "ADAM"
-        self.Scheduler = "ReduceLROnPlateau" 
-        self.patience = 20
-        self.gamma = 0.9
-        self.n_epochs = 5000
-        self.early_stopping = 100
-        self.log_wandb = True
-        self.plot_graphs = True
-        self.save_model = True
-        self.model_save_path = "models/double_integrator_model.pth"
-        self.save_plot = True
-
-        self.Q = np.diag([1.0, 1.0])
-        self.R = np.diag([0.1])
-        self.LOAD_MODEL = False
-
-class inverted_pendulum(problem):   
-    def __init__(self):
-        super().__init__()
-        self.problem = "inverted-pendulum"
-        self.architecture = "xtfc"
-        self.analytical_pretraining = "xTQx"
-        self.in_dim = 2
-        self.out_dim = 1
-        self.hidden_units = [64, 64, 64]
-        self.activation = nn.Tanh()
-        self.n_colloc = 1000
-        self.input_range = [-1.0, 1.0]
-        self.edge_sampling_weight = 0.0
-        self.lr = 1e-3
-        self.optimizer = "ADAM"
-        self.Scheduler = "ReduceLROnPlateau"
-        self.patience = 20
-        self.gamma = 0.9
-        self.n_epochs = 5000
-        self.early_stopping = 100
-        self.log_wandb = True
-        self.plot_graphs = True
-        self.save_model = True
-        self.model_save_path = "models/inverted_pendulum_model.pth"
-        self.save_plot = True
-
-        self.Q = np.diag([1.0, 1.0])
-        self.R = np.diag([0.1])
-        self.LOAD_MODEL = False
-
-        def dicp(problem):
-            def __init__(self):

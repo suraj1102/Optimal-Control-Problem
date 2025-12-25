@@ -17,19 +17,26 @@ print(f"Using device: {device}")
 
 def sample_inputs(n_sample = 5, dim = 2, edge_weight = 0.2, input_range = (-1, 1)):
     """
-    Generate input mesh for traning (will require grads) or eval
+    Generate input mesh for training (will require grads) or eval
     """
     xs = []
 
     n_edge = int(edge_weight * n_sample / 2)
     n_mid = int((1 - edge_weight) * n_sample)
 
-    for _ in range(dim):
-        xi_edge_1 = np.random.uniform(input_range[0], 0.8 * input_range[0], size=(n_edge, 1))
-        xi_edge_2 = np.random.uniform(0.8 * input_range[1], input_range[1], size=(n_edge, 1))
-        xi_mid = np.random.uniform(0.8 * input_range[0], 0.8 * input_range[1], size=(n_mid, 1))
+    # Support input_range as list of tuples or single tuple
+    if isinstance(input_range, list):
+        ranges = input_range
+    else:
+        ranges = [input_range] * dim
+
+    for i in range(dim):
+        min_val, max_val = ranges[i]
+        xi_edge_1 = np.random.uniform(min_val, 0.8 * min_val, size=(n_edge, 1))
+        xi_edge_2 = np.random.uniform(0.8 * max_val, max_val, size=(n_edge, 1))
+        xi_mid = np.random.uniform(0.8 * min_val, 0.8 * max_val, size=(n_mid, 1))
         xi = np.vstack([xi_edge_1, xi_edge_2, xi_mid])
-        # xi = np.random.uniform(input_range[0], input_range[1], size=(n_sample, 1))
+        # xi = np.random.uniform(min_val, max_val, size=(n_sample, 1))
         xs.append(xi)
     x = np.hstack(xs)
     return torch.tensor(x, dtype=torch.float32, device=device)
@@ -38,8 +45,12 @@ def compute_V_pred_and_exact(model, V_exact_func, n_points=200, hparams=None):
     model.eval()
 
     nx = n_points
-    x1 = np.linspace(hparams['input_range'][0], hparams['input_range'][1], nx)
-    x2 = np.linspace(hparams['input_range'][0], hparams['input_range'][1], nx)
+    if isinstance(hparams['input_range'], list):
+        x1 = np.linspace(hparams['input_range'][0][0], hparams['input_range'][0][1], nx)
+        x2 = np.linspace(hparams['input_range'][1][0], hparams['input_range'][1][1], nx)
+    else:
+        x1 = np.linspace(hparams['input_range'][0], hparams['input_range'][1], nx)
+        x2 = np.linspace(hparams['input_range'][0], hparams['input_range'][1], nx)
     X1, X2 = np.meshgrid(x1, x2)
     X = np.vstack([X1.ravel(), X2.ravel()]).T
     X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
