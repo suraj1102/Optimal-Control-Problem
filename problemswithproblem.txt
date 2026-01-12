@@ -1,0 +1,16 @@
+hparams should be with the models
+test stability should automatically tell us stable or not
+the thing in the problem overrides it
+fx gx function names 
+
+
+
+----------------------------
+
+
+
+segregate Hparams into stuff that WE need to input and stuff that is implied by problem
+Abstract the f_x and g_x methods properly and define in child classes
+Abstract the control input function into problem
+rename Q_R_Matrices to get_ matrices or smth
+Abstract test_stability properly so that it does not need to be defined in the child classes (define the variables in constructor)

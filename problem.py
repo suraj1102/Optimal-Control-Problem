@@ -7,7 +7,6 @@ import torch
 
 #TODO: implement multiple input ranges logic
 #      complete test stability logic in child classes
-#      dicp problem entirely  
 
 class problem:
     def __init__(self):
