@@ -4,6 +4,9 @@
     - [] Abstract control input function into problem
     - [] Rename Q_R_Matrices to make more logical sense
     - [] Abstract test_stability so that it makes logical sense
+    - [x] Properly abstract computeinput wheee
+
+    - [] Add test_stability and simulate_trajectory to base model class
 
  - [] Integrate with previous code
     - [] Make XTFC take problem as input
