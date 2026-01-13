@@ -12,13 +12,13 @@ class problem:
         self.hparams = hparams
 
     def f_x(self,x: torch.Tensor) -> torch.Tensor:
-        return torch.zeros_like(x)
+        raise NotImplementedError
 
     def g_x(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.zeros_like(x)
+        raise NotImplementedError
     
     def pde_residual(x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
-        return torch.zeros_like(x[:, 0])
+        raise NotImplementedError
 
     def control_input(self, x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
         Q = self.hparams.problem_params.Q
