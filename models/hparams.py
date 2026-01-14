@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import List
 import torch
+import torch.nn as nn
+import yaml
 
 @dataclass
 class HyperHyperParams:
@@ -13,7 +15,7 @@ class HyperHyperParams:
 @dataclass
 class ProblemParams:
     in_dim: int
-    input_ranges: List
+    input_ranges: List[List[float]]
     mass_bob: float = None
     mass_cart: float = None
     height_cart: float = None
@@ -27,19 +29,40 @@ class ProblemParams:
 @dataclass
 class TrainingParams:
     hidden_units: int
-    activation: function
+    activation: str
     n_colloc: int
     edge_sampling_weight: List[float]
     n_epochs: int
+
+    def __post_init__(self):
+        activation_map = {
+            "relu": nn.ReLU,
+            "tanh": nn.Tanh,
+            "sigmoid": nn.Sigmoid,
+            "gelu": nn.GELU,
+            "elu": nn.ELU,
+            "leaky_relu": nn.LeakyReLU,
+            "softplus": nn.Softplus,
+        }
+
+        key = self.activation.lower()
+        if key not in activation_map:
+            raise ValueError(
+                f"Unknown activation '{self.activation}'. "
+                f"Available: {list(activation_map.keys())}"
+            )
+        
+        self.activation = activation_map[key]
+        
 
 @dataclass
 class OptimizerParams:
     optimizer: str
     lr: float
-    scheduler: str
-    patience: int
-    gamma: float
-    early_stopping: int
+    scheduler: str = None
+    patience: int = -1
+    gamma: float = -1.0
+    early_stopping: int = -1
 
 class Device:
     def __init__(self):
@@ -51,10 +74,35 @@ class Device:
             self.device = torch.device("cpu")
         print(f"Using device: {self.device}")
 
-@dataclass
 class Hyperparams:
-    hyper_params: HyperHyperParams
-    problem_params: ProblemParams
-    training_params: TrainingParams
-    optimizer_params: OptimizerParams
-    device: Device = Device()
+    def __init__(
+        self,
+        hyper_params: HyperHyperParams,
+        problem_params: ProblemParams,
+        training_params: TrainingParams,
+        optimizer_params: OptimizerParams,
+        device: Device = None
+    ):
+        
+        self.hyper_params = hyper_params
+        self.problem_params = problem_params
+        self.training_params = training_params
+        self.optimizer_params = optimizer_params
+        self.device = device if device is not None else Device()
+
+    @classmethod
+    def from_yaml(cls, filepath: str):
+        with open(filepath, 'r') as file:
+            config = yaml.safe_load(file)
+
+        hyper_params = HyperHyperParams(**config['hyper_params'])
+        problem_params = ProblemParams(**config['problem_params'])
+        training_params = TrainingParams(**config['training_params'])
+        optimizer_params = OptimizerParams(**config['optimizer_params'])
+
+        return cls(
+            hyper_params=hyper_params,
+            problem_params=problem_params,
+            training_params=training_params,
+            optimizer_params=optimizer_params
+        )
