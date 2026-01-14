@@ -1,8 +1,8 @@
-from problem import problem
+from models.problem import problem
 import numpy as np
 import torch
 import torch.nn as nn
-from hparams import Hyperparams
+from models.hparams import Hyperparams
 
 class double_integrator(problem):
     def __init__(self, hparams: Hyperparams):

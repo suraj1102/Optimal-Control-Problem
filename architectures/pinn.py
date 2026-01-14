@@ -1,6 +1,6 @@
 from torch import nn
 import torch
-from hparams import hparams
+from models.hparams import hparams
 from utils import *
 
 class Pinn(nn.Module):

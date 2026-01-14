@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import torch
-from hparams import Hyperparams
+from models.hparams import Hyperparams
 
 
 class problem:

@@ -1,5 +1,5 @@
 from utils import *
-from hparams import hparams
+from models.hparams import hparams
 
 """
 TFC:
