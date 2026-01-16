@@ -3,6 +3,7 @@ from typing import List
 import torch
 import torch.nn as nn
 import yaml
+import numpy as np
 
 @dataclass
 class HyperHyperParams:
@@ -43,6 +44,7 @@ class TrainingParams:
             "elu": nn.ELU,
             "leaky_relu": nn.LeakyReLU,
             "softplus": nn.Softplus,
+            "silu": nn.SiLU
         }
 
         key = self.activation.lower()
@@ -53,6 +55,12 @@ class TrainingParams:
             )
         
         self.activation = activation_map[key]
+
+
+@dataclass
+class PretrainingParams:
+    n_pretraining_colloc: int
+    lambda_reg: float
         
 
 @dataclass
@@ -81,6 +89,7 @@ class Hyperparams:
         problem_params: ProblemParams,
         training_params: TrainingParams,
         optimizer_params: OptimizerParams,
+        pretraining_params: PretrainingParams = None,
         device: Device = None
     ):
         
@@ -88,7 +97,11 @@ class Hyperparams:
         self.problem_params = problem_params
         self.training_params = training_params
         self.optimizer_params = optimizer_params
+        self.pretraining_params = pretraining_params
         self.device = device if device is not None else Device()
+
+        self.problem_params.Q = torch.tensor(self.problem_params.Q, dtype=torch.float32, device=self.device.device)
+        self.problem_params.R = torch.tensor(self.problem_params.R, dtype=torch.float32, device=self.device.device)
 
     @classmethod
     def from_yaml(cls, filepath: str):
@@ -99,10 +112,12 @@ class Hyperparams:
         problem_params = ProblemParams(**config['problem_params'])
         training_params = TrainingParams(**config['training_params'])
         optimizer_params = OptimizerParams(**config['optimizer_params'])
+        pretraining_params = PretrainingParams(**config['pretraining_params']) if 'pretraining_params' in config else None
 
         return cls(
             hyper_params=hyper_params,
             problem_params=problem_params,
             training_params=training_params,
-            optimizer_params=optimizer_params
+            optimizer_params=optimizer_params,
+            pretraining_params=pretraining_params
         )

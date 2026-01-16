@@ -10,4 +10,4 @@
 
  - [] Integrate with previous code
     - [] Make XTFC take problem as input
-    - [] Make Pinn take problem as input
+    - [x] Make Pinn take problem as input

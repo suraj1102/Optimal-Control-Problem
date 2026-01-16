@@ -39,9 +39,9 @@ class ValueFunctionModel(torch.nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.y(self.forward_layers_output(x))
+        return self.y(self.hidden_layers_output(x))
     
-    def forward_layers_output(self, x: torch.Tensor) -> torch.Tensor:
+    def hidden_layers_output(self, x: torch.Tensor) -> torch.Tensor:
         for _, layer in enumerate(self.layers):
             x = self.activation(layer(x))
         return x
@@ -55,10 +55,10 @@ class ValueFunctionModel(torch.nn.Module):
         else:
             raise ValueError(f"Optimizer {optimizer_name} not recognized or implemented.")
         
-    def sample_inputs(self) -> torch.Tensor:
+    def sample_inputs(self, num_points: int = None) -> torch.Tensor:
         xs = []
 
-        n_sample = self.hparams.training_params.n_colloc
+        n_sample = self.hparams.training_params.n_colloc if num_points is None else num_points
         input_ranges = self.hparams.problem_params.input_ranges
         edge_weights = self.hparams.training_params.edge_sampling_weight
 
@@ -76,3 +76,41 @@ class ValueFunctionModel(torch.nn.Module):
 
         x = np.hstack(xs)
         return torch.tensor(x, dtype=torch.float32, device=self.device)
+    
+    def _generate_trajectory(self, x0: torch.Tensor, step_size: float, n_steps: int) -> torch.Tensor:
+        trajectory = [x0]
+
+        x_current = x0
+        for _ in range(n_steps):
+            x_current.requires_grad_(True)
+            _, _, _, grad_v = self.get_outputs(x_current)
+
+            f_x = self.problem.f_x(x_current)
+            g_x = self.problem.g_x(x_current)
+
+            u_star = self.problem.control_input(x_current, grad_v)
+
+            x_dot = f_x + g_x * u_star
+            x_next = x_current + step_size * x_dot
+
+            trajectory.append(x_next)
+            x_current = x_next
+
+        return torch.cat(trajectory, dim=0)
+    
+
+    def plot_trajectory(self, x0: torch.Tensor, step_size: float, n_steps: int):
+        import matplotlib.pyplot as plt
+
+        trajectory = self._generate_trajectory(x0, step_size, n_steps).detach().cpu().numpy()
+
+        plt.figure(figsize=(8, 6))
+        time = np.arange(trajectory.shape[0])
+        plt.plot(time, trajectory[:, 0], label='x1', marker='o')
+        plt.plot(time, trajectory[:, 1], label='x2', marker='s')
+        plt.title('Generated Trajectory')
+        plt.xlabel('Time step')
+        plt.ylabel('State value')
+        plt.legend()
+        plt.grid()
+        plt.show()

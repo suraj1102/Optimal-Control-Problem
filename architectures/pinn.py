@@ -1,10 +1,11 @@
 from models.valuefunctionmodel import ValueFunctionModel
+from models.problem import problem
 from tqdm import tqdm
 import torch
 
 class Pinn(ValueFunctionModel):
-    def __init__(self, hparams):
-        super().__init__(hparams)
+    def __init__(self, problem: problem):
+        super().__init__(problem)
 
     
     def get_outputs(self, x: torch.Tensor):

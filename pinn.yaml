@@ -14,10 +14,10 @@ problem_params:
 
 training_params:
   hidden_units: [64]
-  activation: "tanh"
+  activation: "silu"
   n_colloc: 5000
   edge_sampling_weight: [0.2, 0.2]
-  n_epochs: 1000
+  n_epochs: 10000
 
 optimizer_params:
   optimizer: "adam"

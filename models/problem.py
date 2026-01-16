@@ -23,7 +23,6 @@ class problem:
     def control_input(self, x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
         Q = self.hparams.problem_params.Q
         R = self.hparams.problem_params.R
+        g_x = self.g_x(x)
         
-        # For inverted pendulum, g_x = [0, 1/(m*l^2)], so g_x^T * ∇V = V_thetadot / (m*l^2)
-        # u = -0.5 * R^{-1} * g_x^T * ∇V
-        return -0.5 * R[0, 0] * grad_v[:, 1:2] / (self.mass * self.length * self.length)  # grad_v[:, 1] is V_thetadot
+        return -0.5 * (R @ (g_x @ grad_v.T))
