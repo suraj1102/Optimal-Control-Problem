@@ -106,11 +106,40 @@ class ValueFunctionModel(torch.nn.Module):
 
         plt.figure(figsize=(8, 6))
         time = np.arange(trajectory.shape[0])
-        plt.plot(time, trajectory[:, 0], label='x1', marker='o')
-        plt.plot(time, trajectory[:, 1], label='x2', marker='s')
+        plt.plot(time, trajectory[:, 0], label='x1')
+        plt.plot(time, trajectory[:, 1], label='x2')
         plt.title('Generated Trajectory')
         plt.xlabel('Time step')
         plt.ylabel('State value')
         plt.legend()
         plt.grid()
+        plt.show()
+
+
+    def plot_value_function(self):
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+
+        input_ranges = self.hparams.problem_params.input_ranges
+        n_points = 100
+
+        x1 = np.linspace(input_ranges[0][0], input_ranges[0][1], n_points)
+        x2 = np.linspace(input_ranges[1][0], input_ranges[1][1], n_points)
+        X1, X2 = np.meshgrid(x1, x2)
+        inputs = np.stack([X1.ravel(), X2.ravel()], axis=1)
+        inputs_tensor = torch.tensor(inputs, dtype=torch.float32, device=self.device)
+        with torch.no_grad():
+            values = self.forward(inputs_tensor).cpu().numpy().reshape(X1.shape)
+            if values.shape != X1.shape:
+                # If output is (N, 1), squeeze to (N,)
+                values = values.squeeze()
+                values = values.reshape(X1.shape)
+
+        fig = plt.figure(figsize=(10, 7))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(X1, X2, values, cmap='viridis')
+        ax.set_xlabel('x1')
+        ax.set_ylabel('x2')
+        ax.set_zlabel('Value')
+        ax.set_title('Value Function Surface')
         plt.show()

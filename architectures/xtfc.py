@@ -61,7 +61,7 @@ class XTFC(ValueFunctionModel):
 
     def train_(self):
         self.set_optimizer_scheduler()
-        self.train()
+        self.train() # Set model to training mode (as opposed to eval)
 
         self.freeze_hidden()
 
@@ -70,6 +70,7 @@ class XTFC(ValueFunctionModel):
             self.optimizer.zero_grad()
 
             x_colloc = self.sample_inputs()
+            print(f"{x_colloc.shape=}")
             x_colloc.requires_grad_(True)
 
             g_x, g_0, v, grad_v = self.get_outputs(x_colloc)

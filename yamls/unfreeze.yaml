@@ -13,7 +13,7 @@ problem_params:
   R: [[0.1]]
 
 training_params:
-  hidden_units: [20]
+  hidden_units: [50]
   activation: "silu"
   n_colloc: 5000
   edge_sampling_weight: [0.2, 0.2]
