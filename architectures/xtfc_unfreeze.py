@@ -1,28 +1,18 @@
-from models.valuefunctionmodel import ValueFunctionModel
-from models.problem import problem
-from tqdm import tqdm
+from architectures.xtfc import XTFC
 import torch
+from tqdm import tqdm
 
-class Pinn(ValueFunctionModel):
-    def __init__(self, problem: problem):
+class XTFC_Unfreeze(XTFC):
+    def __init__(self, problem):
         super().__init__(problem)
-
-    
-    def get_outputs(self, x: torch.Tensor):
-        x.requires_grad_(True)
-
-        g_x = self(x)
-        g_0 = self(self.x_bc)
-        v = g_x
-
-        grad_v = torch.autograd.grad(v, x, grad_outputs=torch.ones_like(v), create_graph=True, retain_graph=False)[0]
-
-        return g_x, g_0, v, grad_v
-    
 
     def train_(self):
         self.set_optimizer_scheduler()
-        super().train()
+        self.train()
+
+        print("x_bc requires_grad:", self.x_bc.requires_grad)
+        print("x_bc grad_fn:", self.x_bc.grad_fn)
+
 
         progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress", unit="epoch")
         for _ in progress_bar:

@@ -13,8 +13,8 @@ class XTFC(ValueFunctionModel):
         g_x = self(x)
         g_0 = self(self.x_bc)
         v = g_x + self.v_bc - g_0
-
         grad_v = torch.autograd.grad(v, x, grad_outputs=torch.ones_like(v), create_graph=True, retain_graph=True)[0]
+
 
         return g_x, g_0, v, grad_v
     
@@ -41,7 +41,7 @@ class XTFC(ValueFunctionModel):
 
         with torch.no_grad():
             H = self.hidden_layers_output(x)
-            target = x.T @ Q @ x
+            target = x @ Q @ x.T
 
             # Analytical solution: W = (HᵀH + λI)⁻¹ Hᵀ T
             HTH = H.T @ H
@@ -58,3 +58,33 @@ class XTFC(ValueFunctionModel):
             mse_error = torch.mean((V_approx - target) ** 2).item()
 
             print(f"Pretraining completed. MSE Error: {mse_error}")
+
+    def train_(self):
+        self.set_optimizer_scheduler()
+        self.train()
+
+        self.freeze_hidden()
+
+        progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress", unit="epoch")
+        for _ in progress_bar:
+            self.optimizer.zero_grad()
+
+            x_colloc = self.sample_inputs()
+            x_colloc.requires_grad_(True)
+
+            g_x, g_0, v, grad_v = self.get_outputs(x_colloc)
+
+            pde_residual = self.problem.pde_residual(x_colloc, grad_v)
+            boundary_residual = self.v_bc - g_0
+
+            boundary_loss = torch.mean(boundary_residual**2)
+            pde_loss = torch.mean(pde_residual**2)
+
+            pde_loss.backward()
+
+            self.optimizer.step()
+
+            progress_bar.set_postfix({
+                "PDE Loss": pde_loss.item(),
+                "Boundary Loss": boundary_loss.item()
+            })

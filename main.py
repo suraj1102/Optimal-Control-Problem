@@ -1,13 +1,16 @@
 from architectures.pinn import Pinn
+from architectures.xtfc_unfreeze import XTFC_Unfreeze
+from architectures.xtfc import XTFC
 from models.hparams import Hyperparams
 from problems.double_integrator import double_integrator
 import torch
 
 if __name__ == "__main__":
-    Hyperparams_obj = Hyperparams.from_yaml("pinn.yaml")
+    Hyperparams_obj = Hyperparams.from_yaml("yamls/unfreeze.yaml")
     problem = double_integrator(Hyperparams_obj)
-    model = Pinn(problem)
+    model = XTFC(problem)
 
-    model.train()
+    model.xTQx_analytical_pretraining()
+    model.train_()
 
     model.plot_trajectory(torch.tensor([[1.0, 1.0]], dtype=torch.float32), 1, 1000)
