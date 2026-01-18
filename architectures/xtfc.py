@@ -70,7 +70,6 @@ class XTFC(ValueFunctionModel):
             self.optimizer.zero_grad()
 
             x_colloc = self.sample_inputs()
-            print(f"{x_colloc.shape=}")
             x_colloc.requires_grad_(True)
 
             g_x, g_0, v, grad_v = self.get_outputs(x_colloc)

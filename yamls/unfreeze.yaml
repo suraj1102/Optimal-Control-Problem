@@ -9,8 +9,8 @@ problem_params:
   in_dim: 2
   input_ranges: [[-1.0, 1.0], [-1.0, 1.0]]
 
-  Q: [[1.0, 0.0], [0.0, 1.0]]
-  R: [[0.1]]
+  Q: [[10.0, 0.0], [0.0, 1.0]]
+  R: [[1]]
 
 training_params:
   hidden_units: [50]
@@ -24,5 +24,5 @@ optimizer_params:
   lr: 0.001
 
 pretraining_params:
-  n_pretraining_colloc: 1000
+  n_pretraining_colloc: 100
   lambda_reg: 0.000001
