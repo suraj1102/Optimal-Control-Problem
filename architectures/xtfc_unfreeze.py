@@ -10,9 +10,6 @@ class XTFC_Unfreeze(XTFC):
         self.set_optimizer_scheduler()
         self.train()
 
-        print("x_bc requires_grad:", self.x_bc.requires_grad)
-        print("x_bc grad_fn:", self.x_bc.grad_fn)
-
 
         progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress", unit="epoch")
         for _ in progress_bar:
@@ -28,7 +25,7 @@ class XTFC_Unfreeze(XTFC):
             boundary_loss = torch.mean(boundary_residual**2)
             pde_loss = torch.mean(pde_residual**2)
 
-            loss = pde_loss + boundary_loss
+            loss = pde_loss
             loss.backward()
 
             self.optimizer.step()
