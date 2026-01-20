@@ -1,6 +1,6 @@
 hyper_params:
-  problem: "double_integrator"
-  architecture: "xtfc-unfreeze"
+  problem: "double_integrator"  # Does not do anything, just for reference
+  architecture: "xtfc-unfreeze" # Does not do anything, just for reference
   analytical_pretraining: "xTQx"
   log_wandb: false
   bias: false

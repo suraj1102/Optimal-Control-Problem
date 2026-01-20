@@ -34,6 +34,15 @@ class XTFC(ValueFunctionModel):
         for param in self.parameters():
             param.requires_grad = True
 
+    def _get_target(self, x: torch.Tensor):
+        Q = self.hparams.problem_params.Q
+
+        # Q should be square (n, n), x should be (batch_size, n)
+        # targets should be (batch_size, 1)
+        # Compute x^T Q x for each sample in the batch
+        targets = torch.sum(x @ Q * x, dim=1, keepdim=True)
+
+        return targets
     
     def xTQx_analytical_pretraining(self):
         x = self.sample_inputs(self.hparams.pretraining_params.n_pretraining_colloc)
@@ -41,7 +50,7 @@ class XTFC(ValueFunctionModel):
 
         with torch.no_grad():
             H = self.hidden_layers_output(x)
-            target = x @ Q @ x.T
+            target = self._get_target(x)
 
             # Analytical solution: W = (HᵀH + λI)⁻¹ Hᵀ T
             HTH = H.T @ H
@@ -56,6 +65,18 @@ class XTFC(ValueFunctionModel):
 
             V_approx = H @ beta_analytical
             mse_error = torch.mean((V_approx - target) ** 2).item()
+
+            print(f"x shape: {x.shape}")
+            print(f"Q shape: {Q.shape}")
+            print(f"H shape: {H.shape}")
+            print(f"target shape: {target.shape}")
+            print(f"HTH shape: {HTH.shape}")
+            print(f"HTT shape: {HTT.shape}")
+            print(f"I shape: {I.shape}")
+            print(f"HTH_reg shape: {HTH_reg.shape}")
+            print(f"beta_analytical shape: {beta_analytical.shape}")
+            print(f"self.y.weight shape: {self.y.weight.data.shape}")
+            print(f"V_approx shape: {V_approx.shape}")
 
             print(f"Pretraining completed. MSE Error: {mse_error}")
 

@@ -46,6 +46,9 @@ class ValueFunctionModel(torch.nn.Module):
             x = self.activation(layer(x))
         return x
     
+    def get_outputs(self, x: torch.Tensor):
+        raise NotImplementedError("This method should be implemented in subclasses.")
+    
     def set_optimizer_scheduler(self):
         optimizer_name = self.hparams.optimizer_params.optimizer
         lr = self.hparams.optimizer_params.lr
@@ -128,12 +131,14 @@ class ValueFunctionModel(torch.nn.Module):
         X1, X2 = np.meshgrid(x1, x2)
         inputs = np.stack([X1.ravel(), X2.ravel()], axis=1)
         inputs_tensor = torch.tensor(inputs, dtype=torch.float32, device=self.device)
-        with torch.no_grad():
-            values = self.forward(inputs_tensor).cpu().numpy().reshape(X1.shape)
-            if values.shape != X1.shape:
-                # If output is (N, 1), squeeze to (N,)
-                values = values.squeeze()
-                values = values.reshape(X1.shape)
+        
+        g_x, _, _, _ = self.get_outputs(inputs_tensor)
+
+        values = g_x.cpu().detach().numpy().reshape(X1.shape)
+        if values.shape != X1.shape:
+            # If output is (N, 1), squeeze to (N,)
+            values = values.squeeze()
+            values = values.reshape(X1.shape)
 
         fig = plt.figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')

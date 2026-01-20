@@ -8,8 +8,8 @@ import torch
 
 if __name__ == "__main__":
     Hyperparams_obj = Hyperparams.from_yaml("yamls/unfreeze.yaml")
-    problem = nonlinear_dynamics(Hyperparams_obj)
-    model = XTFC(problem)
+    problem = double_integrator(Hyperparams_obj)
+    model = XTFC_Unfreeze(problem)
     model.to(device=model.device)
 
     model.xTQx_analytical_pretraining()
