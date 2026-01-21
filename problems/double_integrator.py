@@ -8,6 +8,8 @@ class double_integrator(problem):
     def __init__(self, hparams: Hyperparams):
         super().__init__(hparams)
 
+        self.hparams.problem_params.labels = ['position', 'velocity']
+
     def f_x(self, x: torch.Tensor) -> torch.Tensor:
         # Drift term for double integrator: \dot{x} = [x2, 0] + [0, 1] * u
         return torch.stack([

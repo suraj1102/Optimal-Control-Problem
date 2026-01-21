@@ -12,7 +12,10 @@ class XTFC_Unfreeze(XTFC):
 
 
         progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress", unit="epoch")
-        for _ in progress_bar:
+        for epoch in progress_bar:
+            if self.hparams.hyper_params.training_visualization and epoch % 1000 == 0:
+                self.plot_value_function()
+
             self.optimizer.zero_grad()
 
             x_colloc = self.sample_inputs()
@@ -22,16 +25,16 @@ class XTFC_Unfreeze(XTFC):
             pde_residual = self.problem.pde_residual(x_colloc, grad_v)
             boundary_residual = self.v_bc - g_0
 
-            boundary_loss = torch.mean(boundary_residual**2)
+            boundary_loss = torch.mean(boundary_residual**2) # Just for display
             pde_loss = torch.mean(pde_residual**2)
 
-            loss = pde_loss
-            loss.backward()
+            pde_loss.backward()
 
             self.optimizer.step()
 
             progress_bar.set_postfix({
-                "Total Loss": loss.item(),
                 "PDE Loss": pde_loss.item(),
                 "Boundary Loss": boundary_loss.item()
             })
+
+            

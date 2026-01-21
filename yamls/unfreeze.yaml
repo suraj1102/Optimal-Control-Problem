@@ -13,7 +13,7 @@ problem_params:
   R: [[1]]
 
 training_params:
-  hidden_units: [50]
+  hidden_units: [20]
   activation: "silu"
   n_colloc: 5000
   edge_sampling_weight: [0.2, 0.2]
@@ -24,5 +24,5 @@ optimizer_params:
   lr: 0.001
 
 pretraining_params:
-  n_pretraining_colloc: 100
+  n_pretraining_colloc: 10000
   lambda_reg: 0.000001

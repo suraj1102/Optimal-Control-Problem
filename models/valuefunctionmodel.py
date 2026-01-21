@@ -4,6 +4,7 @@ import torch.optim as optim
 from models.hparams import Hyperparams
 from models.problem import problem
 import numpy as np
+import matplotlib.pyplot as plt
 
 class ValueFunctionModel(torch.nn.Module):
     def __init__(self, problem: problem):
@@ -16,6 +17,7 @@ class ValueFunctionModel(torch.nn.Module):
         out_dim = 1
 
         self.device = self.hparams.device.device
+        self.debug = self.hparams.hyper_params.debug
 
         # Use ModuleList so submodules are registered and moved when calling .to(device)
         self.layers: nn.ModuleList = nn.ModuleList()
@@ -59,29 +61,37 @@ class ValueFunctionModel(torch.nn.Module):
             raise ValueError(f"Optimizer {optimizer_name} not recognized or implemented.")
         
     def sample_inputs(self, num_points: int = None) -> torch.Tensor:
-        xs = []
-
         n_sample = self.hparams.training_params.n_colloc if num_points is None else num_points
+
         input_ranges = self.hparams.problem_params.input_ranges
-        edge_weights = self.hparams.training_params.edge_sampling_weight
+        in_dim = self.hparams.problem_params.in_dim
 
-        for i in range(self.hparams.problem_params.in_dim):
-            n_edge = int(n_sample * edge_weights[i] / 2)
-            n_mid = int((1 - edge_weights[i]) * n_sample)
-            span = abs(input_ranges[i][1] - input_ranges[i][0])
+        x = np.zeros((n_sample, in_dim))
 
-            edge_low = np.random.uniform(input_ranges[i][0], input_ranges[i][0] + edge_weights[i] * span, size=(n_edge, 1))
-            edge_high = np.random.uniform(input_ranges[i][1] - edge_weights[i] * span, input_ranges[i][1], size=(n_edge, 1))
-            mid = np.random.uniform(input_ranges[i][0] + edge_weights[i] * span, input_ranges[i][1] - edge_weights[i] * span, size=(n_mid, 1))
+        for d in range(in_dim):
+            low, high = input_ranges[d]
+            x[:, d] = np.random.uniform(low, high, size=n_sample)
 
-            xi = np.vstack((edge_low, mid, edge_high))
-            xs.append(xi)
-
-        x = np.hstack(xs)
         return torch.tensor(x, dtype=torch.float32, device=self.device)
+    
+    def plot_sample_inputs(self, x: torch.Tensor):
+        x = x.cpu().detach().numpy()
+        if x.shape[1] == 2:
+            plt.scatter(x[:, 0], x[:, 1], alpha=0.6)
+            plt.xlabel('x1')
+            plt.ylabel('x2')
+            plt.title('Sampled Inputs')
+            plt.grid(True)
+            plt.show()
+        else:
+            plt.plot(x)
+            plt.title('Sampled Inputs')
+            plt.grid(True)
+            plt.show()
     
     def _generate_trajectory(self, x0: torch.Tensor, step_size: float, n_steps: int) -> torch.Tensor:
         trajectory = [x0]
+        u = [0]
 
         x_current = x0
         for _ in range(n_steps):
@@ -97,20 +107,26 @@ class ValueFunctionModel(torch.nn.Module):
             x_next = x_current + step_size * x_dot
 
             trajectory.append(x_next)
+            u.append(float(u_star.cpu().detach().numpy()))
             x_current = x_next
 
-        return torch.cat(trajectory, dim=0)
+        return torch.cat(trajectory, dim=0), u
     
 
     def plot_trajectory(self, x0: torch.Tensor, step_size: float, n_steps: int):
-        import matplotlib.pyplot as plt
+        trajectory, u = self._generate_trajectory(x0, step_size, n_steps)
+        trajectory = trajectory.cpu().detach().numpy()
 
-        trajectory = self._generate_trajectory(x0, step_size, n_steps).detach().cpu().numpy()
+        labels = self.hparams.problem_params.labels
 
         plt.figure(figsize=(8, 6))
         time = np.arange(trajectory.shape[0])
-        plt.plot(time, trajectory[:, 0], label='x1')
-        plt.plot(time, trajectory[:, 1], label='x2')
+
+        for i in range(trajectory.shape[1]):
+            plt.plot(time, trajectory[:, i], label=labels[i] if labels and i < len(labels) else f'x{i+1}')
+
+        plt.plot(time, u, label='Control')
+
         plt.title('Generated Trajectory')
         plt.xlabel('Time step')
         plt.ylabel('State value')
@@ -120,9 +136,6 @@ class ValueFunctionModel(torch.nn.Module):
 
 
     def plot_value_function(self):
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
-
         input_ranges = self.hparams.problem_params.input_ranges
         n_points = 100
 
@@ -135,6 +148,7 @@ class ValueFunctionModel(torch.nn.Module):
         g_x, _, _, _ = self.get_outputs(inputs_tensor)
 
         values = g_x.cpu().detach().numpy().reshape(X1.shape)
+
         if values.shape != X1.shape:
             # If output is (N, 1), squeeze to (N,)
             values = values.squeeze()

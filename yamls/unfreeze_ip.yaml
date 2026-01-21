@@ -4,13 +4,15 @@ hyper_params:
   analytical_pretraining: "xTQx"
   log_wandb: false
   bias: false
+  training_visualization: false
+  debug: false
 
 problem_params:
   in_dim: 2
-  input_ranges: [[-1.0, 1.0], [-1.0, 1.0]]
+  input_ranges: [[-0.5, 0.5], [-0.5, 0.5]]
 
   Q: [[10.0, 0.0], [0.0, 1.0]]
-  R: [[1]]
+  R: [[1.0]]
 
   mass_bob: 0.2
   length_rod: 1.0
@@ -28,5 +30,7 @@ optimizer_params:
   lr: 0.001
 
 pretraining_params:
-  n_pretraining_colloc: 10000
+  n_pretraining_colloc: 1000
   lambda_reg: 0.000001
+  initialization_cutoff: 0.00001
+  init_limit: 10

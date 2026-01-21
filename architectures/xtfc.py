@@ -44,7 +44,28 @@ class XTFC(ValueFunctionModel):
 
         return targets
     
-    def xTQx_analytical_pretraining(self):
+    def analytical_pretraining(self):
+        if self.hparams.hyper_params.analytical_pretraining.lower() == "xtqx":
+            tries = 1 if self.hparams.pretraining_params.initialization_cutoff == -1 else self.hparams.pretraining_params.init_limit
+            best_mse = float('inf')
+            best_beta = None
+
+            for attempt in range(tries):
+                mse_error, beta_analytical = self.perform_xTQX()
+
+                if mse_error < self.hparams.pretraining_params.initialization_cutoff:
+                    print(f"Pretraining successful on attempt {attempt + 1} with MSE Error: {mse_error}")
+                    break
+                
+                print(f"Pretraining attempt {attempt + 1} failed with MSE Error: {mse_error}. Retrying...")
+                if mse_error < best_mse:
+                    best_mse = mse_error
+                    best_beta = beta_analytical
+            else:
+                print(f"Pretraining did not meet cutoff after {tries} attempts. Using best result with MSE Error: {best_mse}")
+                self.y.weight.data = best_beta.T
+
+    def perform_xTQX(self):
         x = self.sample_inputs(self.hparams.pretraining_params.n_pretraining_colloc)
         Q = self.hparams.problem_params.Q
 
@@ -66,25 +87,31 @@ class XTFC(ValueFunctionModel):
             V_approx = H @ beta_analytical
             mse_error = torch.mean((V_approx - target) ** 2).item()
 
-            print(f"x shape: {x.shape}")
-            print(f"Q shape: {Q.shape}")
-            print(f"H shape: {H.shape}")
-            print(f"target shape: {target.shape}")
-            print(f"HTH shape: {HTH.shape}")
-            print(f"HTT shape: {HTT.shape}")
-            print(f"I shape: {I.shape}")
-            print(f"HTH_reg shape: {HTH_reg.shape}")
-            print(f"beta_analytical shape: {beta_analytical.shape}")
-            print(f"self.y.weight shape: {self.y.weight.data.shape}")
-            print(f"V_approx shape: {V_approx.shape}")
+            if self.debug:
+                print(f"x shape: {x.shape}")
+                print(f"Q shape: {Q.shape}")
+                print(f"H shape: {H.shape}")
+                print(f"target shape: {target.shape}")
+                print(f"HTH shape: {HTH.shape}")
+                print(f"HTT shape: {HTT.shape}")
+                print(f"I shape: {I.shape}")
+                print(f"HTH_reg shape: {HTH_reg.shape}")
+                print(f"beta_analytical shape: {beta_analytical.shape}")
+                print(f"self.y.weight shape: {self.y.weight.data.shape}")
+                print(f"V_approx shape: {V_approx.shape}")
+
+                self.plot_sample_inputs(x)
 
             print(f"Pretraining completed. MSE Error: {mse_error}")
 
+            return mse_error, beta_analytical
+
     def train_(self):
-        self.set_optimizer_scheduler()
         self.train() # Set model to training mode (as opposed to eval)
 
         self.freeze_hidden()
+
+        self.set_optimizer_scheduler()
 
         progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress", unit="epoch")
         for _ in progress_bar:

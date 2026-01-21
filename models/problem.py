@@ -1,5 +1,4 @@
 from pyexpat import model
-from utils import *
 import numpy as np
 import torch.nn as nn
 import matplotlib.pyplot as plt

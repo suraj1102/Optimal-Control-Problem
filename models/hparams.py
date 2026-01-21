@@ -12,6 +12,8 @@ class HyperHyperParams:
     analytical_pretraining: str
     log_wandb: bool
     bias: bool
+    training_visualization: bool = False
+    debug: bool = False
 
 @dataclass
 class ProblemParams:
@@ -61,7 +63,9 @@ class TrainingParams:
 class PretrainingParams:
     n_pretraining_colloc: int
     lambda_reg: float
-        
+
+    init_limit: int = 1
+    initialization_cutoff: float = -1   # -1 means no loop
 
 @dataclass
 class OptimizerParams:

@@ -8,6 +8,8 @@ class inverted_pendulum(problem):
     def __init__(self, hparams: Hyperparams):
         super().__init__(hparams)
 
+        self.hparams.problem_params.labels = ['theta', 'thetadot']
+
         self.mass = hparams.problem_params.mass_bob
         self.length = hparams.problem_params.length_rod
         self.gravity = hparams.problem_params.gravity
