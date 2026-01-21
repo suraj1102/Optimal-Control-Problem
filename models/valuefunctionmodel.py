@@ -5,12 +5,15 @@ from models.hparams import Hyperparams
 from models.problem import problem
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
 
 class ValueFunctionModel(torch.nn.Module):
     def __init__(self, problem: problem):
         super().__init__()
         self.hparams = problem.hparams
         self.problem = problem
+
+        self.logger = self.hparams.logger
 
         hidden_units = self.hparams.training_params.hidden_units
         in_dim = self.hparams.problem_params.in_dim
@@ -39,6 +42,16 @@ class ValueFunctionModel(torch.nn.Module):
         self.x_bc = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=self.device)
         self.v_bc = torch.tensor([[0.0]], dtype=torch.float32, device=self.device)
 
+        if self.debug:
+            self.logger.debug(f"Model initialized on device: {self.device}")
+            self.logger.debug(f"Input dimension: {in_dim}, Output dimension: {out_dim}")
+            self.logger.debug(f"Hidden units: {hidden_units}")
+            self.logger.debug(f"Layers:")
+            for i, layer in enumerate(self.layers):
+                self.logger.debug(f"  Layer {i}: {layer}")
+            self.logger.debug(f"Output layer: {self.y}")
+            self.logger.debug(f"Activation function: {self.activation}")
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.y(self.hidden_layers_output(x))
@@ -57,6 +70,8 @@ class ValueFunctionModel(torch.nn.Module):
 
         if optimizer_name in ['ADAM', 'Adam', 'adam', torch.optim.Adam, optim.Adam]:
             self.optimizer = optim.Adam(self.parameters(), lr=lr)
+
+            self.logger.debug(f"Using Adam optimizer with learning rate {lr}")
         else:
             raise ValueError(f"Optimizer {optimizer_name} not recognized or implemented.")
         

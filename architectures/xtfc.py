@@ -54,15 +54,15 @@ class XTFC(ValueFunctionModel):
                 mse_error, beta_analytical = self.perform_xTQX()
 
                 if mse_error < self.hparams.pretraining_params.initialization_cutoff:
-                    print(f"Pretraining successful on attempt {attempt + 1} with MSE Error: {mse_error}")
+                    self.logger.info(f"Pretraining successful on attempt {attempt + 1} with MSE Error: {mse_error}")
                     break
                 
-                print(f"Pretraining attempt {attempt + 1} failed with MSE Error: {mse_error}. Retrying...")
+                self.logger.debug(f"Pretraining attempt {attempt + 1} failed with MSE Error: {mse_error}. Retrying...")
                 if mse_error < best_mse:
                     best_mse = mse_error
                     best_beta = beta_analytical
             else:
-                print(f"Pretraining did not meet cutoff after {tries} attempts. Using best result with MSE Error: {best_mse}")
+                self.logger.info(f"Pretraining did not meet cutoff after {tries} attempts. Using best result with MSE Error: {best_mse}")
                 self.y.weight.data = best_beta.T
 
     def perform_xTQX(self):
@@ -86,23 +86,22 @@ class XTFC(ValueFunctionModel):
 
             V_approx = H @ beta_analytical
             mse_error = torch.mean((V_approx - target) ** 2).item()
-
             if self.debug:
-                print(f"x shape: {x.shape}")
-                print(f"Q shape: {Q.shape}")
-                print(f"H shape: {H.shape}")
-                print(f"target shape: {target.shape}")
-                print(f"HTH shape: {HTH.shape}")
-                print(f"HTT shape: {HTT.shape}")
-                print(f"I shape: {I.shape}")
-                print(f"HTH_reg shape: {HTH_reg.shape}")
-                print(f"beta_analytical shape: {beta_analytical.shape}")
-                print(f"self.y.weight shape: {self.y.weight.data.shape}")
-                print(f"V_approx shape: {V_approx.shape}")
+                self.logger.debug(f"x shape: {x.shape}")
+                self.logger.debug(f"Q shape: {Q.shape}")
+                self.logger.debug(f"H shape: {H.shape}")
+                self.logger.debug(f"target shape: {target.shape}")
+                self.logger.debug(f"HTH shape: {HTH.shape}")
+                self.logger.debug(f"HTT shape: {HTT.shape}")
+                self.logger.debug(f"I shape: {I.shape}")
+                self.logger.debug(f"HTH_reg shape: {HTH_reg.shape}")
+                self.logger.debug(f"beta_analytical shape: {beta_analytical.shape}")
+                self.logger.debug(f"self.y.weight shape: {self.y.weight.data.shape}")
+                self.logger.debug(f"V_approx shape: {V_approx.shape}")
 
                 self.plot_sample_inputs(x)
 
-            print(f"Pretraining completed. MSE Error: {mse_error}")
+            self.logger.info(f"Pretraining completed. MSE Error: {mse_error}")
 
             return mse_error, beta_analytical
 
