@@ -89,11 +89,12 @@ class ValueFunctionModel(torch.nn.Module):
             plt.grid(True)
             plt.show()
     
-    def _generate_trajectory(self, x0: torch.Tensor, step_size: float, n_steps: int) -> torch.Tensor:
+    def _generate_trajectory(self, x0: torch.Tensor, step_size: float, time: int) -> torch.Tensor:
         trajectory = [x0]
         u = [0]
 
         x_current = x0
+        n_steps = int(time / step_size)
         for _ in range(n_steps):
             x_current.requires_grad_(True)
             _, _, _, grad_v = self.get_outputs(x_current)
@@ -103,8 +104,13 @@ class ValueFunctionModel(torch.nn.Module):
 
             u_star = self.problem.control_input(x_current, grad_v)
 
+
             x_dot = f_x + g_x * u_star
             x_next = x_current + step_size * x_dot
+
+            # ---- FOR IP -----
+            if self.hparams.hyper_params.problem.lower() == "inverted-pendulum":
+                x_next = x_next % 2 * torch.pi
 
             trajectory.append(x_next)
             u.append(float(u_star.cpu().detach().numpy()))
@@ -113,7 +119,8 @@ class ValueFunctionModel(torch.nn.Module):
         return torch.cat(trajectory, dim=0), u
     
 
-    def plot_trajectory(self, x0: torch.Tensor, step_size: float, n_steps: int):
+    def plot_trajectory(self, x0: torch.Tensor, step_size: float, time: int):
+        n_steps = int(time / step_size)
         trajectory, u = self._generate_trajectory(x0, step_size, n_steps)
         trajectory = trajectory.cpu().detach().numpy()
 
@@ -125,7 +132,7 @@ class ValueFunctionModel(torch.nn.Module):
         for i in range(trajectory.shape[1]):
             plt.plot(time, trajectory[:, i], label=labels[i] if labels and i < len(labels) else f'x{i+1}')
 
-        plt.plot(time, u, label='Control')
+        plt.plot(time, u, label='Control', color='blue')
 
         plt.title('Generated Trajectory')
         plt.xlabel('Time step')

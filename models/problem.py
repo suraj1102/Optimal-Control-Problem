@@ -24,4 +24,5 @@ class problem:
         R = self.hparams.problem_params.R
         g_x = self.g_x(x)
         
-        return -0.5 * (R @ (g_x @ grad_v.T))
+        u = -0.5 * (torch.inverse(R) @ (g_x @ grad_v.T))
+        return u

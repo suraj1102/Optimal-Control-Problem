@@ -30,14 +30,15 @@ class inverted_pendulum(problem):
 
     def pde_residual(self, x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
         # HJB equation residual for inverted pendulum
-        theta = x[:, 0]
-        thetadot = x[:, 1]
-        V_theta = grad_v[:, 0]
-        V_thetadot = grad_v[:, 1]
-        
-        # Residual: -0.5*(theta^2 + thetadot^2) - V_theta*thetadot + 0.5*(V_thetadot^2)/(m*l^2) + V_theta * (gravity/l * sin(theta))
-        term1 = -0.5 * (torch.square(theta) + torch.square(thetadot))
-        term2 = -V_theta * thetadot
-        term3 = 0.5 * torch.square(V_thetadot) / (self.mass * self.length * self.length)
-        term4 = V_theta * (self.gravity / self.length * torch.sin(theta))
-        return term1 + term2 + term3 + term4
+        x1 = x[:, 0]
+        x2 = x[:, 1]
+        V_x1 = grad_v[:, 0]
+        V_x2 = grad_v[:, 1]
+
+        Q = self.hparams.problem_params.Q
+        R = self.hparams.problem_params.R
+
+        term1 = V_x1 * x2 + torch.square(x1) * Q[0, 0] + torch.square(x2) * Q[1, 1] 
+        term2 = - torch.square(V_x2) / (4 * self.length**4 * self.mass**2 * R[0, 0])
+        term3 = V_x2 * self.gravity * torch.sin(x1) / self.length
+        return term1 + term2 + term3
