@@ -5,7 +5,7 @@ hyper_params:
   log_wandb: false
   bias: false
   training_visualization: false
-  debug: false
+  debug: true
 
 problem_params:
   in_dim: 2
