@@ -28,13 +28,32 @@ class XTFC_Unfreeze(XTFC):
             boundary_loss = torch.mean(boundary_residual**2) # Just for display
             pde_loss = torch.mean(pde_residual**2)
 
-            pde_loss.backward()
+            zero = torch.zeros(1, device=next(self.parameters()).device)
+
+            l1_loss = (
+                self.hparams.training_params.l1_lambda *
+                sum(param.abs().sum() for param in self.parameters())
+                if self.hparams.training_params.l1
+                else zero
+            )
+
+            l2_loss = (
+                self.hparams.training_params.l2_lambda *
+                sum((param ** 2).sum() for param in self.parameters())
+                if self.hparams.training_params.l2
+                else zero
+            )
+
+            total_loss = pde_loss + l1_loss + l2_loss
+
+            total_loss.backward()
 
             self.optimizer.step()
 
             progress_bar.set_postfix({
                 "PDE Loss": pde_loss.item(),
-                "Boundary Loss": boundary_loss.item()
+                "Boundary Loss": boundary_loss.item(),
+                "L1 Loss": l1_loss.item(),
+                "L2 Loss": l2_loss.item(),
+                "Total Loss": total_loss.item()
             })
-
-            
