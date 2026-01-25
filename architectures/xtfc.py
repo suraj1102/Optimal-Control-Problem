@@ -59,15 +59,19 @@ class XTFC(ValueFunctionModel):
         from scipy.linalg import solve_continuous_are
 
         device = self.device
+        
+        # Cost matrices (from your hparams)
+        Q = self.hparams.problem_params.Q.detach().cpu().numpy()
+        R = self.hparams.problem_params.R.detach().cpu().numpy()
 
         # Equilibrium point
         if x_eq is None:
-            x_eq = torch.zeros(1, 2, device=device, requires_grad=True)
+            x_eq = torch.zeros(1, Q.shape[0], device=device, requires_grad=True)
         else:
             x_eq = x_eq.clone().detach().requires_grad_(True)
 
         if u_eq is None:
-            u_eq = torch.zeros(1, 1, device=device, requires_grad=True)
+            u_eq = torch.zeros(1, R.shape[0], device=device, requires_grad=True)
         else:
             u_eq = u_eq.clone().detach().requires_grad_(True)
 
@@ -91,9 +95,6 @@ class XTFC(ValueFunctionModel):
         A_np = A.detach().cpu().numpy()
         B_np = B.detach().cpu().numpy().reshape(2, 1)
 
-        # Cost matrices (from your hparams)
-        Q = self.hparams.problem_params.Q.detach().cpu().numpy()
-        R = self.hparams.problem_params.R.detach().cpu().numpy()
 
         # ---- Solve CARE ----
         S = solve_continuous_are(A_np, B_np, Q, R)
