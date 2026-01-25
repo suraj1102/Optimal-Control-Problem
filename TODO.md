@@ -11,3 +11,9 @@
  - [] Integrate with previous code
     - [] Make XTFC take problem as input
     - [x] Make Pinn take problem as input
+
+### Plotting and Stability Stuff
+- [ ] Make u[0] = 0
+   - Also maybe try to have a smooth output starting from 0 and the initial state x_0
+- [ ] Make plotting graph such that at t = 0 corresponds to x_0 and u_0
+- [ ] Make it so time, and step size actually mean what they mean 
