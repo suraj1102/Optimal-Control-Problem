@@ -106,13 +106,13 @@ class ValueFunctionModel(torch.nn.Module):
     
     def _generate_trajectory(self, x0: torch.Tensor, step_size: float, time: int) -> torch.Tensor:
         trajectory = [x0]
-        u = [0]
+        u = []
 
         x_current = x0
         n_steps = int(time / step_size)
-        for _ in range(n_steps):
+        for step in range(n_steps):
             x_current.requires_grad_(True)
-            _, _, _, grad_v = self.get_outputs(x_current)
+            _, _, v, grad_v = self.get_outputs(x_current)
 
             f_x = self.problem.f_x(x_current)
             g_x = self.problem.g_x(x_current)
@@ -123,22 +123,38 @@ class ValueFunctionModel(torch.nn.Module):
             x_dot = f_x + g_x * u_star
             x_next = x_current + step_size * x_dot
 
+            # if self.debug:
+            #     self.logger.info(f"timestep: {step}")
+            #     self.logger.info(f"x_current: {x_current.data}")
+            #     self.logger.info(f"V(x_current) = {v.data}")
+            #     self.logger.info(f"del_V/del_x = {grad_v.data}")
+            #     self.logger.info(f"u_star: {u_star.data}")
+
             # ---- FOR IP -----
             if self.hparams.hyper_params.problem.lower() == "inverted-pendulum":
                 x_next = (x_next + torch.pi) % (2 * torch.pi) - torch.pi
+
             trajectory.append(x_next)
-            u.append(float(u_star.cpu().detach().numpy()))
+            u.append(u_star)
             x_current = x_next
 
-        return torch.cat(trajectory, dim=0), u
+
+
+        return torch.cat(trajectory, dim=0), torch.cat(u, dim=0)
     
 
     def plot_trajectory(self, x0: torch.Tensor, step_size: float, time: int):
         n_steps = int(time / step_size)
         trajectory, u = self._generate_trajectory(x0, step_size, n_steps)
+
         trajectory = trajectory.cpu().detach().numpy()
+        trajectory = trajectory[1:, :] # Remove first entry as that is the initial condition
+        u = u.cpu().detach().numpy()
 
         labels = self.hparams.problem_params.labels
+
+        self.logger.info(f"Full trajectory shape = {trajectory.shape}")
+        self.logger.info(f"Full u shape = {u.shape}")
 
         plt.figure(figsize=(8, 6))
         time = np.arange(trajectory.shape[0])

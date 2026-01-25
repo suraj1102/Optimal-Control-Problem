@@ -26,5 +26,5 @@ if __name__ == "__main__":
     model.analytical_pretraining()
     model.train_()
 
-    model.plot_trajectory(torch.tensor([[0, 0.1]], dtype=torch.float32, device=model.device), 1, 1000)
+    model.plot_trajectory(torch.tensor([[2.7, 0.5]], dtype=torch.float32, device=model.device), 0.01, 1)
     model.plot_value_function()
