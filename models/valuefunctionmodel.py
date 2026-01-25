@@ -5,6 +5,7 @@ from models.hparams import Hyperparams
 from models.problem import problem
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 import logging
 
 class ValueFunctionModel(torch.nn.Module):
@@ -110,7 +111,8 @@ class ValueFunctionModel(torch.nn.Module):
 
         x_current = x0
         n_steps = int(time / step_size)
-        for step in range(n_steps):
+
+        for step in tqdm(range(n_steps), desc="Generating trajectory", unit="step", ncols=80):
             x_current.requires_grad_(True)
             _, _, v, grad_v = self.get_outputs(x_current)
 
