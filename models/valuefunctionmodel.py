@@ -125,8 +125,7 @@ class ValueFunctionModel(torch.nn.Module):
 
             # ---- FOR IP -----
             if self.hparams.hyper_params.problem.lower() == "inverted-pendulum":
-                x_next = x_next % 2 * torch.pi
-
+                x_next = (x_next + torch.pi) % (2 * torch.pi) - torch.pi
             trajectory.append(x_next)
             u.append(float(u_star.cpu().detach().numpy()))
             x_current = x_next
