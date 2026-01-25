@@ -99,7 +99,7 @@ class XTFC(ValueFunctionModel):
                 self.logger.debug(f"self.y.weight shape: {self.y.weight.data.shape}")
                 self.logger.debug(f"V_approx shape: {V_approx.shape}")
 
-                self.plot_sample_inputs(x)
+                # self.plot_sample_inputs(x)
 
             self.logger.info(f"Pretraining completed. MSE Error: {mse_error}")
 
