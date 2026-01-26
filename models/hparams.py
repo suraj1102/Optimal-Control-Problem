@@ -24,6 +24,7 @@ class ProblemParams:
     height_cart: float = None
     length_rod: float = None
     gravity: float = None
+    gamma: float = None # Damping Coef for damped-ip 
 
     Q: List[List[float]] = None
     R: List[List[float]] = None
