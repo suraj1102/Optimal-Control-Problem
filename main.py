@@ -5,6 +5,7 @@ from models.hparams import Hyperparams
 from problems.double_integrator import double_integrator
 from problems.nonlinear_dynamics import nonlinear_dynamics
 from problems.inverted_pendulum import inverted_pendulum
+from models.simulator import Simulator
 import torch
 import log
 import logging
@@ -26,5 +27,15 @@ if __name__ == "__main__":
     model.analytical_pretraining()
     model.train_()
 
-    model.plot_trajectory(torch.tensor([[2.7, 0.5]], dtype=torch.float32, device=model.device), 0.01, 1)
-    model.plot_value_function()
+    simulator = Simulator(model)
+    x0 = torch.tensor([[np.pi - 0.1, 0.0]], dtype=torch.float32, device=model.device)
+
+    simulator.test_model(
+        n_points=10,
+        t_span=10.0,
+        time_step=0.01,
+        min_delta=1e-4,
+        patience=50,
+        random=True,
+        ranges = [[-np.pi, np.pi], [-5.0, 5.0]]
+    )
