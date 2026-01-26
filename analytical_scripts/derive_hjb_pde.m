@@ -6,11 +6,17 @@ x = [x1; x2];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "double-input-cart-pole";
+problem = "damped-inverted-pendulum";
 
 if problem == "nonlinear-dynamics"
-    Q = [1 0; 0 1];
-    R = 1;
+    syms q11 q22 real
+    syms r11 real
+
+    Q = [q11 0;
+        0 q22
+        ];
+
+    R = [r11];
 
     f_x = [
         x2 - x1;
@@ -23,8 +29,14 @@ if problem == "nonlinear-dynamics"
     ];
 
 elseif problem == "nonlinear-dynamics-2"
-    Q = [1 0; 0 1];
-    R = 1;
+    syms q11 q22 real
+    syms r11 real
+
+    Q = [q11 0;
+        0 q22
+        ];
+
+    R = [r11];
 
     f_x = [
         -x1 + x2;
@@ -37,8 +49,14 @@ elseif problem == "nonlinear-dynamics-2"
     ];
 
 elseif problem == "double-integrator"
-    Q = 1/2 * [1 0; 0 1];
-    R = 1/2 * 1;
+    syms q11 q22 real
+    syms r11 real
+
+    Q = [q11 0;
+        0 q22
+        ];
+
+    R = [r11];
 
     f_x = [
         x2;
@@ -52,8 +70,14 @@ elseif problem == "double-integrator"
 
 elseif problem == "inverted-pendulum"
     % x1 -> theta | x2 -> dot(theta)
-    Q = [100 0; 0 1];
-    R = 10;
+    syms q11 q22 real
+    syms r11 real
+
+    Q = [q11 0;
+        0 q22
+        ];
+
+    R = [r11];
 
     syms g l m real
 
@@ -66,6 +90,31 @@ elseif problem == "inverted-pendulum"
         0;
         1 / (m*l*l)
     ];
+
+elseif problem == "damped-inverted-pendulum"
+    % x1 -> theta | x2 -> dot(theta)
+    syms q11 q22 real
+    syms r11 real
+    syms gamma real
+
+    Q = [q11 0;
+        0 q22
+        ];
+
+    R = [r11];
+
+    syms g l m real
+
+    f_x = [
+        x2;
+        g/l * sin(x1) - (gamma / m) * x2
+    ];
+
+    g_x = [
+        0;
+        1 / (m*l*l)
+    ];
+
 
 elseif problem == "double-input-cart-pole"
     syms q11 q22 q33 q44 real
