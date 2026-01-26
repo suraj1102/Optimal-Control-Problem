@@ -6,7 +6,7 @@ x = [x1; x2];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "damped-inverted-pendulum";
+problem = "inverted-pendulum";
 
 if problem == "nonlinear-dynamics"
     syms q11 q22 real
@@ -171,36 +171,38 @@ assume(V_x, 'real');
 HJB = -V_x' * (f_x + g_x * u) - L;
 
 % --- Differentiate HJB wrt u1 and u2 ---
-dHJB_du = [
-    diff(HJB, u1);
-    diff(HJB, u2)
-];
+% Number of controls
+m = length(u);
 
-% --- Solve for optimal control u* ---
-u_star_struct = solve(dHJB_du == 0, [u1 u2], 'ReturnConditions', false);
+% Gradient of HJB w.r.t. u
+dHJB_du = gradient(HJB, u);
 
-u_star = [
-    u_star_struct.u1;
-    u_star_struct.u2
-];
+% Solve first-order optimality condition
+u_star = solve(dHJB_du == 0, u, 'ReturnConditions', false);
+
+% --- Normalize output to symbolic column vector ---
+if isstruct(u_star)
+    % Multiple-input case returning struct
+    u_star = struct2cell(u_star);
+    u_star = vertcat(u_star{:});
+elseif isa(u_star, 'sym')
+    % Already a symbolic vector (or scalar)
+    u_star = u_star(:);
+else
+    error("Unexpected solve() output type.");
+end
+
+u_star = simplify(u_star);
+
 
 % --- Substitute u* back into HJB ---
 HJB = simplify(subs(HJB, u, u_star));
 HJB = simplify(expand(HJB), 'Steps', 50);
 HJB = collect(HJB, V_x)
 
-% % --- Cleanup section (no real(), no diff(V,x)) ---
-% for i = 1:length(x)
-%     % remove real(x(i))
-%     HJB    = subs(HJB, real(x(i)), x(i));
-%     u_star = subs(u_star, real(x(i)), x(i));
-% 
-%     % replace gradient diff(V,x(i)) with V_x(i)
-%     HJB    = subs(HJB, sym(['diff(V, x' num2str(i) ')']), V_x(i));
-%     u_star = subs(u_star, sym(['diff(V, x' num2str(i) ')']), V_x(i));
-% end
-% 
 HJB = -HJB;  % match paper convention
+
+
 
 % Generate LaTeX
 HJB_latex = latex(HJB);
