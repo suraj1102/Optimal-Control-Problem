@@ -9,7 +9,7 @@ class Simulator():
         self.model = model
 
     
-    def generate_trajectory(self, x0: torch.Tensor, t_span: np.ndarray, time_step: float, min_delta: float = None, patience: int = None) -> torch.Tensor:
+    def generate_trajectory(self, x0: torch.Tensor, t_span: np.ndarray, time_step: float, min_delta: float = None, patience: int = None, zero_control: bool = False) -> torch.Tensor:
         trajectory = [x0]
         u = []
 
@@ -25,7 +25,10 @@ class Simulator():
             f_x = self.model.problem.f_x(x_current)
             g_x = self.model.problem.g_x(x_current)
 
-            u_star = self.model.problem.control_input(x_current, grad_v)
+            if not zero_control:
+                u_star = self.model.problem.control_input(x_current, grad_v)
+            else:
+                u_star = torch.tensor([[0.0]], device=self.model.device)
 
             x_dot = f_x + g_x * u_star
             x_next = x_current + time_step * x_dot
@@ -86,8 +89,8 @@ class Simulator():
         return success_rate
     
 
-    def plot_trajectory(self, x0: torch.Tensor, t_span: np.ndarray, time_step: float, min_delta: float = None, patience: int = None):
-        trajectory, u, converged = self.generate_trajectory(x0, t_span, time_step, min_delta, patience)
+    def plot_trajectory(self, x0: torch.Tensor, t_span: np.ndarray, time_step: float, min_delta: float = None, patience: int = None, zero_control: bool = False):
+        trajectory, u, converged = self.generate_trajectory(x0, t_span, time_step, min_delta, patience, zero_control)
 
         trajectory = trajectory.cpu().detach().numpy()
         u = u.cpu().detach().numpy()
