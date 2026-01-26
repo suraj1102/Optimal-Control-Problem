@@ -107,7 +107,7 @@ class ValueFunctionModel(torch.nn.Module):
     
     def _generate_trajectory(self, x0: torch.Tensor, step_size: float, time: int) -> torch.Tensor:
         trajectory = [x0]
-        u = []
+        u = [0]
 
         x_current = x0
         n_steps = int(time / step_size)
@@ -121,18 +121,9 @@ class ValueFunctionModel(torch.nn.Module):
 
             u_star = self.problem.control_input(x_current, grad_v)
 
-
             x_dot = f_x + g_x * u_star
             x_next = x_current + step_size * x_dot
 
-            # if self.debug:
-            #     self.logger.info(f"timestep: {step}")
-            #     self.logger.info(f"x_current: {x_current.data}")
-            #     self.logger.info(f"V(x_current) = {v.data}")
-            #     self.logger.info(f"del_V/del_x = {grad_v.data}")
-            #     self.logger.info(f"u_star: {u_star.data}")
-
-            # ---- FOR IP -----
             if self.hparams.hyper_params.problem.lower() == "inverted-pendulum":
                 x_next = (x_next + torch.pi) % (2 * torch.pi) - torch.pi
 
@@ -140,10 +131,7 @@ class ValueFunctionModel(torch.nn.Module):
             u.append(u_star)
             x_current = x_next
 
-
-
         return torch.cat(trajectory, dim=0), torch.cat(u, dim=0)
-    
 
     def plot_trajectory(self, x0: torch.Tensor, step_size: float, time: int):
         n_steps = int(time / step_size)

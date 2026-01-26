@@ -37,8 +37,6 @@ class TrainingParams:
     edge_sampling_weight: List[float]
     n_epochs: int
 
-    l1: bool = False
-    l2: bool = False
     l1_lambda: float = 0.0
     l2_lambda: float = 0.0
 
