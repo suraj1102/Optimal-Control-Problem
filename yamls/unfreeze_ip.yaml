@@ -1,0 +1,39 @@
+hyper_params:
+  problem: "inverted-pendulum"  # Does not do anything, just for reference
+  architecture: "xtfc-unfreeze" # Does not do anything, just for reference
+  analytical_pretraining: "lqr"
+  log_wandb: false
+  bias: false
+  training_visualization: false
+  debug: true
+
+problem_params:
+  in_dim: 2
+  input_ranges: [[-0.5, 0.5], [-0.5, 0.5]]
+
+  Q: [[1.0, 0.0], [0.0, 1.0]]
+  R: [[1.0]]
+
+  mass_bob: 0.2
+  length_rod: 1.0
+  gravity: 9.81
+
+training_params:
+  hidden_units: [50]
+  activation: "silu"
+  n_colloc: 5000
+  edge_sampling_weight: [0.2, 0.2]
+  n_epochs: 100
+
+  l1_lambda: 0
+  l2_lambda: 0
+
+optimizer_params:
+  optimizer: "adam"
+  lr: 0.001
+
+pretraining_params:
+  n_pretraining_colloc: 1000
+  lambda_reg: 0.000001
+  initialization_cutoff: 0.000001
+  init_limit: 100
