@@ -17,6 +17,7 @@ problem_params:
   mass_bob: 0.2
   length_rod: 1.0
   gravity: 9.81
+  gamma: 0.1 # Damping Coef
 
 training_params:
   hidden_units: [50]

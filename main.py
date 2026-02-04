@@ -2,9 +2,8 @@ from architectures.pinn import Pinn
 from architectures.xtfc_unfreeze import XTFC_Unfreeze
 from architectures.xtfc import XTFC
 from models.hparams import Hyperparams
-from problems.double_integrator import double_integrator
-from problems.nonlinear_dynamics import nonlinear_dynamics
 from problems.inverted_pendulum import inverted_pendulum
+from problems.damped_inverted_pendulum import damped_inverted_pendulum
 from models.simulator import Simulator
 import torch
 import log
@@ -20,7 +19,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     torch.manual_seed(0)
 
-    problem = inverted_pendulum(Hyperparams_obj)
+    problem = damped_inverted_pendulum(Hyperparams_obj)
     model = XTFC_Unfreeze(problem)
     model.to(device=model.device)
 

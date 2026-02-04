@@ -44,4 +44,13 @@ class damped_inverted_pendulum(problem):
         Q = self.hparams.problem_params.Q
         R = self.hparams.problem_params.R
 
-        raise NotImplementedError()
+        q11 = Q[0, 0]
+        q22 = Q[1, 1]
+        r11 = R[0, 0]
+
+        term1 = q11 * torch.square(x1) + q22 * torch.square(x2)
+        term2 = x2 * V_x1 
+        term3 = -(1/ (4 * self.length**4 * self.mass**2 * r11)) * torch.square(V_x2)
+        term4 = -((self.gamma * x2 / self.mass) - self.gravity * (torch.sin(x1) / self.length)) * V_x2
+        return term1 + term2 + term3 + term4
+
