@@ -13,6 +13,7 @@ class inverted_pendulum(problem):
         self.mass = hparams.problem_params.mass_bob
         self.length = hparams.problem_params.length_rod
         self.gravity = hparams.problem_params.gravity
+        self.eq_point = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=self.hparams.device.device)
 
     def f_x(self, x: torch.Tensor) -> torch.Tensor:
         return torch.stack([
@@ -29,7 +30,6 @@ class inverted_pendulum(problem):
     
 
     def pde_residual(self, x: torch.Tensor, grad_v: torch.Tensor) -> torch.Tensor:
-        # HJB equation residual for inverted pendulum
         x1 = x[:, 0]
         x2 = x[:, 1]
         V_x1 = grad_v[:, 0]

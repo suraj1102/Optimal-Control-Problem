@@ -6,7 +6,7 @@ from models.problem import problem
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import logging
+import wandb
 
 class ValueFunctionModel(torch.nn.Module):
     def __init__(self, problem: problem):
@@ -90,102 +90,33 @@ class ValueFunctionModel(torch.nn.Module):
 
         return torch.tensor(x, dtype=torch.float32, device=self.device)
     
-    def plot_sample_inputs(self, x: torch.Tensor):
-        x = x.cpu().detach().numpy()
-        if x.shape[1] == 2:
-            plt.scatter(x[:, 0], x[:, 1], alpha=0.6)
-            plt.xlabel('x1')
-            plt.ylabel('x2')
-            plt.title('Sampled Inputs')
-            plt.grid(True)
-            plt.show()
-        else:
-            plt.plot(x)
-            plt.title('Sampled Inputs')
-            plt.grid(True)
-            plt.show()
     
-    def _generate_trajectory(self, x0: torch.Tensor, step_size: float, time: int) -> torch.Tensor:
-        trajectory = [x0]
-        u = [0]
+    def pre_train_step(self):
+        raise NotImplementedError("This method should be implemented in subclasses.")
+    
+    def train_step(self):
+        raise NotImplementedError("This method should be implemented in subclasses.")
+    
+    def train_model(self):
+        self.train() # Set model to training mode (as opposed to eval)
+        self.set_optimizer_scheduler()
 
-        x_current = x0
-        n_steps = int(time / step_size)
+        self.pre_train_step()
 
-        for step in tqdm(range(n_steps), desc="Generating trajectory", unit="step", ncols=80):
-            x_current.requires_grad_(True)
-            _, _, v, grad_v = self.get_outputs(x_current)
+        progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress")
+        for _ in progress_bar:
 
-            f_x = self.problem.f_x(x_current)
-            g_x = self.problem.g_x(x_current)
+            loss = self.train_step()
 
-            u_star = self.problem.control_input(x_current, grad_v)
+            if self.hparams.training_params.l1_lambda != 0:
+                l1_norm = sum(p.abs().sum() for p in self.parameters())
+                loss += self.hparams.training_params.l1_lambda * l1_norm
 
-            x_dot = f_x + g_x * u_star
-            x_next = x_current + step_size * x_dot
+            if self.hparams.training_params.l2_lambda != 0:
+                l2_norm = sum(p.pow(2.0).sum() for p in self.parameters())
+                loss += self.hparams.training_params.l2_lambda * l2_norm
 
-            if self.hparams.hyper_params.problem.lower() == "inverted-pendulum":
-                x_next = (x_next + torch.pi) % (2 * torch.pi) - torch.pi
+            loss.backward()
+            self.optimizer.step()
 
-            trajectory.append(x_next)
-            u.append(u_star)
-            x_current = x_next
-
-        return torch.cat(trajectory, dim=0), torch.cat(u, dim=0)
-
-    def plot_trajectory(self, x0: torch.Tensor, step_size: float, time: int):
-        n_steps = int(time / step_size)
-        trajectory, u = self._generate_trajectory(x0, step_size, n_steps)
-
-        trajectory = trajectory.cpu().detach().numpy()
-        trajectory = trajectory[1:, :] # Remove first entry as that is the initial condition
-        u = u.cpu().detach().numpy()
-
-        labels = self.hparams.problem_params.labels
-
-        self.logger.info(f"Full trajectory shape = {trajectory.shape}")
-        self.logger.info(f"Full u shape = {u.shape}")
-
-        plt.figure(figsize=(8, 6))
-        time = np.arange(trajectory.shape[0])
-
-        for i in range(trajectory.shape[1]):
-            plt.plot(time, trajectory[:, i], label=labels[i] if labels and i < len(labels) else f'x{i+1}')
-
-        plt.plot(time, u, label='Control', color='blue')
-
-        plt.title('Generated Trajectory')
-        plt.xlabel('Time step')
-        plt.ylabel('State value')
-        plt.legend()
-        plt.grid()
-        plt.show()
-
-
-    def plot_value_function(self):
-        input_ranges = self.hparams.problem_params.input_ranges
-        n_points = 100
-
-        x1 = np.linspace(input_ranges[0][0], input_ranges[0][1], n_points)
-        x2 = np.linspace(input_ranges[1][0], input_ranges[1][1], n_points)
-        X1, X2 = np.meshgrid(x1, x2)
-        inputs = np.stack([X1.ravel(), X2.ravel()], axis=1)
-        inputs_tensor = torch.tensor(inputs, dtype=torch.float32, device=self.device)
-        
-        g_x, _, _, _ = self.get_outputs(inputs_tensor)
-
-        values = g_x.cpu().detach().numpy().reshape(X1.shape)
-
-        if values.shape != X1.shape:
-            # If output is (N, 1), squeeze to (N,)
-            values = values.squeeze()
-            values = values.reshape(X1.shape)
-
-        fig = plt.figure(figsize=(10, 7))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(X1, X2, values, cmap='viridis')
-        ax.set_xlabel('x1')
-        ax.set_ylabel('x2')
-        ax.set_zlabel('Value')
-        ax.set_title('Value Function Surface')
-        plt.show()
+            progress_bar.set_postfix({"Loss": loss.item()})

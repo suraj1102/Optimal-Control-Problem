@@ -25,17 +25,18 @@ if __name__ == "__main__":
     model.to(device=model.device)
 
     model.analytical_pretraining()
-    model.train_()
+    model.train_model()
 
     simulator = Simulator(model)
     x0 = torch.tensor([[np.pi - 0.1, 0.0]], dtype=torch.float32, device=model.device)
 
     simulator.test_model(
-        n_points=10,
+        n_points=1,
         t_span=10.0,
         time_step=0.01,
-        min_delta=1e-4,
+        min_delta=1e-3,
         patience=50,
         random=True,
-        ranges = [[-np.pi, np.pi], [-5.0, 5.0]]
+        ranges = [[-np.pi, np.pi], [-5.0, 5.0]],
+        plot=True
     )

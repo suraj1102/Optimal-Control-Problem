@@ -14,6 +14,7 @@ class HyperHyperParams:
     bias: bool
     training_visualization: bool = False
     debug: bool = False
+    wandb: bool = False
 
 @dataclass
 class ProblemParams:

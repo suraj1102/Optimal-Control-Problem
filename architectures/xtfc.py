@@ -2,6 +2,8 @@ from models.valuefunctionmodel import ValueFunctionModel
 from models.problem import problem
 from tqdm import tqdm
 import torch
+import numpy as np
+from scipy.linalg import solve_continuous_are
 
 class XTFC(ValueFunctionModel):
     def __init__(self, problem: problem):
@@ -55,8 +57,6 @@ class XTFC(ValueFunctionModel):
         Returns:
             A, B, S, K
         """
-        import numpy as np
-        from scipy.linalg import solve_continuous_are
 
         device = self.device
         
@@ -148,33 +148,6 @@ class XTFC(ValueFunctionModel):
         
         self.logger.info(f"{target.shape=}") # Target is (1000)
 
-        # Sanity check to make sure target calculation is correct
-        """
-        self.logger.info(f"x1 = {x[i, 0]}")
-        self.logger.info(f"x2 = {x[i, 1]}")
-        self.logger.info(
-            f"S11x1^2 + (S12 + S21)x1x2 + S22x2^2 = "
-            f"{S[0, 0] * x[i, 0]**2 + (S[0, 1] + S[1, 0]) * (x[i, 0] * x[i, 1]) + S[1, 1] * x[i, 1]**2}"
-        )
-        self.logger.info(f"Target at index i = {target[i, 0]}")
-        
-        # Plotting Target Function
-        import matplotlib.pyplot as plt
-
-        x_np = x.detach().cpu().numpy()
-        target_np = target.detach().cpu().numpy().squeeze()
-
-        from mpl_toolkits.mplot3d import Axes3D
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x_np[:, 0], x_np[:, 1], target_np, c=target_np, cmap='viridis')
-        ax.set_xlabel('x1')
-        ax.set_ylabel('x2')
-        ax.set_zlabel('target')
-        ax.set_title('Target vs x1 and x2')
-        plt.show()
-        """
-
         return self.set_weights_from_target(x, target)
         
 
@@ -223,35 +196,24 @@ class XTFC(ValueFunctionModel):
             self.logger.info(f"Pretraining completed. MSE Error: {mse_error}")
 
             return mse_error, beta_analytical
+        
 
-
-    def train_(self):
-        self.train() # Set model to training mode (as opposed to eval)
-
+    def pre_train_step(self):
         self.freeze_hidden()
+        return
+    
+    def train_step(self):
+        self.optimizer.zero_grad()
 
-        self.set_optimizer_scheduler()
+        x_colloc = self.sample_inputs()
+        x_colloc.requires_grad_(True)
 
-        progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress", unit="epoch")
-        for _ in progress_bar:
-            self.optimizer.zero_grad()
+        _, g_0, _, grad_v = self.get_outputs(x_colloc)
 
-            x_colloc = self.sample_inputs()
-            x_colloc.requires_grad_(True)
+        pde_residual = self.problem.pde_residual(x_colloc, grad_v)
+        boundary_residual = self.v_bc - g_0
 
-            g_x, g_0, v, grad_v = self.get_outputs(x_colloc)
+        boundary_loss = torch.mean(boundary_residual**2)
+        pde_loss = torch.mean(pde_residual**2)
 
-            pde_residual = self.problem.pde_residual(x_colloc, grad_v)
-            boundary_residual = self.v_bc - g_0
-
-            boundary_loss = torch.mean(boundary_residual**2)
-            pde_loss = torch.mean(pde_residual**2)
-
-            pde_loss.backward()
-
-            self.optimizer.step()
-
-            progress_bar.set_postfix({
-                "PDE Loss": pde_loss.item(),
-                "Boundary Loss": boundary_loss.item()
-            })
+        return pde_loss
