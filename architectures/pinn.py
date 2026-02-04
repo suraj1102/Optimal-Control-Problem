@@ -37,4 +37,4 @@ class Pinn(ValueFunctionModel):
         pde_loss = torch.mean(pde_residual**2)
 
         loss = pde_loss + boundary_loss
-        return loss
+        return loss, {"pde_loss": pde_loss.item(), "boundary_loss": boundary_loss.item(), "total_loss": loss.item()}

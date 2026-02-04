@@ -61,6 +61,7 @@ class TrainingParams:
                 f"Available: {list(activation_map.keys())}"
             )
         
+        self.activation_str = self.activation
         self.activation = activation_map[key]
 
 
@@ -130,3 +131,12 @@ class Hyperparams:
             optimizer_params=optimizer_params,
             pretraining_params=pretraining_params
         )
+    
+    def to_dict(self):
+        return {
+            'hyper_params': self.hyper_params.__dict__,
+            'problem_params': self.problem_params.__dict__,
+            'training_params': self.training_params.__dict__,
+            'optimizer_params': self.optimizer_params.__dict__,
+            'pretraining_params': self.pretraining_params.__dict__ if self.pretraining_params else None
+        }

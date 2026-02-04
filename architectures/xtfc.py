@@ -216,4 +216,4 @@ class XTFC(ValueFunctionModel):
         boundary_loss = torch.mean(boundary_residual**2)
         pde_loss = torch.mean(pde_residual**2)
 
-        return pde_loss
+        return pde_loss, {"pde_loss": pde_loss.item(), "boundary_loss": boundary_loss.item()}

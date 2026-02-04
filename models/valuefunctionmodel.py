@@ -1,3 +1,4 @@
+from time import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,21 +8,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import wandb
+import os
+from dotenv import load_dotenv
 
 class ValueFunctionModel(torch.nn.Module):
     def __init__(self, problem: problem):
         super().__init__()
         self.hparams = problem.hparams
         self.problem = problem
-
         self.logger = self.hparams.logger
+        self.device = self.hparams.device.device
+        self.debug = self.hparams.hyper_params.debug
 
+        self.initialize_model()
+        
+        if self.hparams.hyper_params.wandb:
+            self.initialize_wandb()
+
+    def initialize_model(self):
         hidden_units = self.hparams.training_params.hidden_units
         in_dim = self.hparams.problem_params.in_dim
         out_dim = 1
-
-        self.device = self.hparams.device.device
-        self.debug = self.hparams.hyper_params.debug
 
         # Use ModuleList so submodules are registered and moved when calling .to(device)
         self.layers: nn.ModuleList = nn.ModuleList()
@@ -52,6 +59,21 @@ class ValueFunctionModel(torch.nn.Module):
                 self.logger.debug(f"  Layer {i}: {layer}")
             self.logger.debug(f"Output layer: {self.y}")
             self.logger.debug(f"Activation function: {self.activation}")
+
+    def initialize_wandb(self):
+        load_dotenv()
+        wandb_key = os.getenv("WANDB_API_KEY")
+        if wandb_key is not None:
+            wandb.login(key=wandb_key)
+
+        self.run = wandb.init(
+            project=self.hparams.hyper_params.project_name,
+            name=f"{self.hparams.hyper_params.problem}-{self.hparams.hyper_params.architecture}-{self.hparams.training_params.activation_str}-{time.strftime('%d%m%Y-%H%M%S')}",
+            config=self.hparams.to_dict(),
+            reinit=True,
+            resume=False,
+            tags=[self.hparams.hyper_params.problem, self.hparams.hyper_params.architecture, self.hparams.training_params.activation_str, self.hparams.hyper_params.analytical_pretraining if self.hparams.hyper_params.analytical_pretraining else "no-analytical-pretraining"],
+        )
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -106,7 +128,7 @@ class ValueFunctionModel(torch.nn.Module):
         progress_bar = tqdm(range(self.hparams.training_params.n_epochs), desc="Training Progress")
         for _ in progress_bar:
 
-            loss = self.train_step()
+            loss, metrics = self.train_step()
 
             if self.hparams.training_params.l1_lambda != 0:
                 l1_norm = sum(p.abs().sum() for p in self.parameters())
@@ -119,4 +141,7 @@ class ValueFunctionModel(torch.nn.Module):
             loss.backward()
             self.optimizer.step()
 
-            progress_bar.set_postfix({"Loss": loss.item()})
+            progress_bar.set_postfix(metrics)
+
+            if self.hparams.hyper_params.wandb:
+                wandb.log(metrics)
