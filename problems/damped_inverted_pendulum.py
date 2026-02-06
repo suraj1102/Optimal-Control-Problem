@@ -14,6 +14,7 @@ class damped_inverted_pendulum(problem):
         self.length = hparams.problem_params.length_rod
         self.gravity = hparams.problem_params.gravity
         self.gamma = hparams.problem_params.gamma
+        self.eq_point = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=self.hparams.device.device)
 
     def f_x(self, x: torch.Tensor) -> torch.Tensor:
         theta = x[:, 0]

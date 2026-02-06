@@ -5,6 +5,7 @@ from models.hparams import Hyperparams
 from problems.inverted_pendulum import inverted_pendulum
 from problems.damped_inverted_pendulum import damped_inverted_pendulum
 from models.simulator import Simulator
+from visualizers.pendulum import PendulumVisualizer
 import torch
 import log
 import logging
@@ -15,9 +16,6 @@ if __name__ == "__main__":
     logger = log.get_logger("main")
     logger.setLevel(logging.INFO if Hyperparams_obj.hyper_params.debug == False else logging.DEBUG)
     Hyperparams_obj.logger = logger
-
-    np.random.seed(0)
-    torch.manual_seed(0)
 
     problem = damped_inverted_pendulum(Hyperparams_obj)
     model = XTFC_Unfreeze(problem)
@@ -30,12 +28,15 @@ if __name__ == "__main__":
     x0 = torch.tensor([[np.pi - 0.1, 0.0]], dtype=torch.float32, device=model.device)
 
     simulator.test_model(
-        n_points=1,
+        n_points=10,
         t_span=10.0,
         time_step=0.01,
-        min_delta=1e-3,
+        min_delta=1e-2,
         patience=50,
         random=True,
         ranges = [[-np.pi, np.pi], [-5.0, 5.0]],
-        plot=True
+        plot=False
     )
+
+    visualizer = PendulumVisualizer(model, problem, time_step=0.01, initial_state=x0)
+    visualizer.run()
