@@ -1,0 +1,9 @@
+torch
+tqdm
+pygame
+matplotlib
+pyyaml
+wandb
+matlabengine
+dotenv
+scipy

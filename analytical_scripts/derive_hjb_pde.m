@@ -2,15 +2,17 @@ clear; clc; close;
 
 % Define symbolic variables
 syms x1 x2 x3 x4 u1 u2 real
-x = [x1; x2];
+syms q11 q22 q33 q44 real
+syms r11 real
+x = [x1; x2; x3; x4];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "inverted-pendulum";
+problem = "cart-pole";
 
 if problem == "nonlinear-dynamics"
     syms q11 q22 real
-    syms r11 real
+    sy ms r11 real
 
     Q = [q11 0;
         0 q22
@@ -27,6 +29,35 @@ if problem == "nonlinear-dynamics"
         0;
         x1
     ];
+
+elseif problem == "cart-pole"
+    syms M m l g real
+
+    Q = [q11 0 0 0 ;
+        0 q22 0 0;
+        0 0 q33 0;
+        0 0 0 q44;
+        ];
+
+    R = [r11];
+
+    % x1 - theta; x2 - theta_dot; x3 - position x, x4 - velocity_x
+    den = 1 / (M + m * sin(x1)^2);
+    l_t_dot_sq = l * x2 ^ 2;
+    
+    f_x = [
+        x2;
+        (1 / l) * den * (-m * l_t_dot_sq * cos(x1) * sin(x1) - (M + m) * g * sin(x1));
+        x4;
+        den * m * sin(x1) * (l_t_dot_sq + g * sin(x1))
+      ];
+    
+    g_x = [
+        0;  
+        -(1 / l) * den * cos(x1);
+        0;
+        den;
+      ];
 
 elseif problem == "nonlinear-dynamics-2"
     syms q11 q22 real

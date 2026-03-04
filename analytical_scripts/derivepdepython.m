@@ -1,3 +1,26 @@
+% Define System Dynamics
+syms x1, x2, x3, x4, real
+syms u1 real
+syms M, m, l, g, real
+
+% x1 - theta; x2 - theta_dot; x3 - position x, x4 - velocity_x
+den = 1 / (M + m * sin(x1)^2);
+l_t_dot_sq = l * x2 ^ 2;
+
+f_x = [
+    x2;
+    (1 / l) * den * (-m * l_t_dot_sq * cos(x1) * sin(x1) - (M + m) * g * sin(x1));
+    x4;
+    den * m * sin(x1) * (l_t_dot_sq + g * sin(x1))
+  ];
+
+g_x = [
+    0;  
+    -(1 / l) * den * cos(x1);
+    0;
+    den;
+  ];
+
 % Define LQR Loss
 L = x'*Q*x + u'*R*u;
 
