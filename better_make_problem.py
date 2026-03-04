@@ -1,6 +1,4 @@
-""""CONSTANTS"""
-x_dim = 4
-u_dim = 1
+import sympy as sp
 
 constants = {
     "g": "self.gravity",
@@ -8,37 +6,6 @@ constants = {
     "l": "self.length_rod",
     "M": "self.mass_cart"
 }
-# --------------------------------------------------------------------- #
-
-import sympy as sp
-import matlab.engine
-
-eng = matlab.engine.start_matlab()
-eng.eval("clear; clc; close;", nargout=0)
-
-# syms x1 x2 x3 x4 u1 u2 q11 real
-# x_names = [f"x{i}" for i in range(1, x_dim + 1)]
-# u_names = [f"u{i}" for i in range(1, u_dim + 1)]
-q_entries = [f"q{i}{i}" for i in range(1, x_dim + 1)]
-r_entries = [f"r{i}{i}" for i in range(1, u_dim + 1)]
-all_vars = " ".join(x_names + u_names + q_entries + r_entries + list(constants.keys()))
-eng.eval(f"syms {all_vars} real;", nargout=0)
-
-# x = [x1; x2]; u =  u1;
-# x_vars_str = "; ".join(x_names)
-# u_vars_str = "; ".join(u_names)
-# eng.eval(f"x = [{x_vars_str}];", nargout=0)
-# eng.eval(f"u = [{u_vars_str}];", nargout=0)
-
-# define the Q and R matrices
-q_entries_str = "; ".join(q_entries)
-r_entries_str = "; ".join(r_entries)
-eng.eval(f"Q = diag([{q_entries_str}]);", nargout=0)
-eng.eval(f"R = diag([{r_entries_str}]);", nargout=0)
-
-eng.run("derivepdepython.m", nargout=0)
-
-hjb_pde_str = eng.eval("char(HJB);")
 
 def map_symbol(name):
     if name.startswith("q") and len(name) == 3:
@@ -105,5 +72,5 @@ def matlab_to_torch_code(matlab_expr):
 
     return "\n".join(lines)
 
-print(hjb_pde_str)
-print(matlab_to_torch_code(hjb_pde_str))
+# print(hjb_pde_str)
+print(matlab_to_torch_code("(q11*M^2*l^2*x1^2 + q22*M^2*l^2*x2^2 + q33*M^2*l^2*x3^2 + q44*M^2*l^2*x4^2 + 2*q11*M*l^2*m*x1^2*sin(x1)^2 + 2*q22*M*l^2*m*x2^2*sin(x1)^2 + 2*q33*M*l^2*m*x3^2*sin(x1)^2 + 2*q44*M*l^2*m*x4^2*sin(x1)^2 + q11*l^2*m^2*x1^2*sin(x1)^4 + q22*l^2*m^2*x2^2*sin(x1)^4 + q33*l^2*m^2*x3^2*sin(x1)^4 + q44*l^2*m^2*x4^2*sin(x1)^4)/(l^2*(m*sin(x1)^2 + M)^2) - (cos(x1)^2/(4*l^2*r11*(m*sin(x1)^2 + M)^2))*V_x2^2 - (-cos(x1)/(2*l*r11*(m*sin(x1)^2 + M)^2))*V_x2*V_x4 - ((g*M^2*l*sin(x1) + (sin(2*x1)*M*l^2*m*x2^2)/2 + g*M*l*m*sin(x1)^3 + g*M*l*m*sin(x1) + cos(x1)*l^2*m^2*x2^2*sin(x1)^3 + g*l*m^2*sin(x1)^3)/(l^2*(m*sin(x1)^2 + M)^2))*V_x2 - (-(x4*M^2*l^2 + 2*x4*M*l^2*m*sin(x1)^2 + x4*l^2*m^2*sin(x1)^4)/(l^2*(m*sin(x1)^2 + M)^2))*V_x3 - (1/(4*r11*(m*sin(x1)^2 + M)^2))*V_x4^2 - (-(l^3*m^2*x2^2*sin(x1)^3 + M*l^3*m*x2^2*sin(x1) + g*l^2*m^2*sin(x1)^4 + M*g*l^2*m*sin(x1)^2)/(l^2*(m*sin(x1)^2 + M)^2))*V_x4 - (-(x2*M^2*l^2 + 2*x2*M*l^2*m*sin(x1)^2 + x2*l^2*m^2*sin(x1)^4)/(l^2*(m*sin(x1)^2 + M)^2))*V_x1"))

@@ -1,6 +1,31 @@
+<<<<<<< HEAD
 f_x = 
 
 g_x = 
+=======
+% Define System Dynamics
+syms x1, x2, x3, x4 real
+syms u1 real
+syms M, m, l, g, real
+
+% x1 - theta; x2 - theta_dot; x3 - position x, x4 - velocity_x
+den = 1 / (M + m * sin(x1)^2);
+l_t_dot_sq = l * x2 ^ 2;
+
+f_x = [
+    x2;
+    (1 / l) * den * (-m * l_t_dot_sq * cos(x1) * sin(x1) - (M + m) * g * sin(x1));
+    x4;
+    den * m * sin(x1) * (l_t_dot_sq + g * sin(x1))
+  ];
+
+g_x = [
+    0;  
+    -(1 / l) * den * cos(x1);
+    0;
+    den;
+  ];
+>>>>>>> a9ffe4d64bbd59b9cbe468dc4cc7e4294f794ad2
 
 % Define LQR Loss
 L = x'*Q*x + u'*R*u;
