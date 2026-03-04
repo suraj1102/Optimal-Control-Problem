@@ -50,4 +50,4 @@ venv.bak/
 *.png
 *.pt
 
-dump.txt
+pinn_venv/

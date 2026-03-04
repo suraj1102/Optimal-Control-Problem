@@ -1,18 +1,6 @@
-import sympy as sp
-
 """"CONSTANTS"""
 x_dim = 2
 u_dim = 1
-
-f_x = [
-    ["x2"],
-    ["g/l * sin(x1)"]
-]
-
-g_x = [
-    ["0"],
-    ["1/(m*l*l)"]
-]
 
 constants = {
     "g": "self.gravity",
@@ -22,8 +10,7 @@ constants = {
 }
 # --------------------------------------------------------------------- #
 
-import sys
-assert sys.version_info[:2] == (3, 11), "Python 3.11.x is required."
+import sympy as sp
 import matlab.engine
 
 eng = matlab.engine.start_matlab()
@@ -48,14 +35,6 @@ q_entries_str = "; ".join(q_entries)
 r_entries_str = "; ".join(r_entries)
 eng.eval(f"Q = diag([{q_entries_str}]);", nargout=0)
 eng.eval(f"R = diag([{r_entries_str}]);", nargout=0)
-
-# define the f and g functions
-f_rows = [" ".join(row) for row in f_x]
-f_str = "; ".join(f_rows)
-g_rows = [" ".join(row) for row in g_x]
-g_str = "; ".join(g_rows)
-eng.eval(f"f_x = [{f_str}];", nargout=0)
-eng.eval(f"g_x = [{g_str}];", nargout=0)
 
 eng.run("derivepdepython.m", nargout=0)
 

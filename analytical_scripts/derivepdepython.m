@@ -1,3 +1,7 @@
+f_x = 
+
+g_x = 
+
 % Define LQR Loss
 L = x'*Q*x + u'*R*u;
 
