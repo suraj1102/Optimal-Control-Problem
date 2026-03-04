@@ -4,6 +4,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 from scipy.linalg import solve_continuous_are
+from mpl_toolkits.mplot3d import Axes3D
 
 class XTFC(ValueFunctionModel):
     def __init__(self, problem: problem):
@@ -93,7 +94,7 @@ class XTFC(ValueFunctionModel):
 
         # Convert to numpy
         A_np = A.detach().cpu().numpy()
-        B_np = B.detach().cpu().numpy().reshape(2, 1)
+        B_np = B.detach().cpu().numpy().reshape(len(Q), 1)
 
 
         # ---- Solve CARE ----
@@ -142,6 +143,7 @@ class XTFC(ValueFunctionModel):
 
         self.logger.info(f"{x.shape=}")
         self.logger.info(f"{S.shape=}")
+        self.logger.info(f"{S}")
         
         target = (x @ S * x).sum(dim=1) # Target is (1000)
         target = target.unsqueeze(1) # Makes target (1000,1)

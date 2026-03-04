@@ -47,7 +47,7 @@ class ValueFunctionModel(torch.nn.Module):
 
         self.activation = self.hparams.training_params.activation()
 
-        self.x_bc = torch.tensor([[0.0, 0.0]], dtype=torch.float32, device=self.device)
+        self.x_bc = torch.tensor([[0.0 for i in range(self.hparams.problem_params.in_dim)]], dtype=torch.float32, device=self.device)
         self.v_bc = torch.tensor([[0.0]], dtype=torch.float32, device=self.device)
 
         if self.debug:

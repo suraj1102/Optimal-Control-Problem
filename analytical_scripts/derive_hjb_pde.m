@@ -8,7 +8,7 @@ x = [x1; x2; x3; x4];
 u =  u1;
 
 % ------ PARAMETERS -------
-problem = "cart-pole";
+problem = "cart-pole-2";
 
 if problem == "nonlinear-dynamics"
     syms q11 q22 real
@@ -58,6 +58,43 @@ elseif problem == "cart-pole"
         0;
         den;
       ];
+
+elseif problem == "cart-pole-2"
+    syms mc m l g real
+    
+    M = mc + m;
+    J = m*l^2;
+
+    Q = [q11 0 0 0 ;
+        0 q22 0 0;
+        0 0 q33 0;
+        0 0 0 q44;
+        ];
+
+    R = [r11];
+
+
+    theta = x1; omega = x2;
+    den = M*(m*l^2 + J) - (m*l*cos(theta))^2;
+
+    alpha = M*m*g*l*sin(theta) - (m*l*cos(theta)) * (u + m*l*omega^2*sin(theta));
+    alpha = alpha / ( M*(m*l^2+J) - (m*l*cos(theta))^2  );
+
+    % x1 - theta; x2 - theta_dot; x3 - position x, x4 - velocity_x    
+    f_x = [
+        x2;
+        (  M*m*g*l*sin(theta) + (m*l*cos(theta)) * (m*l*omega^2*sin(theta))  ) / den;
+        x4;
+        (-alpha * cos(theta) + omega*sin(theta)) * m*l / M
+      ];
+    
+    g_x = [
+        0;  
+        (-m*l*cos(theta)) / den;
+        0;
+        1 / M;
+      ];
+
 
 elseif problem == "nonlinear-dynamics-2"
     syms q11 q22 real
@@ -228,7 +265,7 @@ u_star = simplify(u_star);
 
 % --- Substitute u* back into HJB ---
 HJB = simplify(subs(HJB, u, u_star));
-HJB = simplify(expand(HJB), 'Steps', 50);
+HJB = simplify(HJB, 'Steps', 50);
 HJB = collect(HJB, V_x)
 
 HJB = -HJB;  % match paper convention

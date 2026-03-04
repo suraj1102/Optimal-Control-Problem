@@ -22,6 +22,7 @@ class ProblemParams:
     input_ranges: List[List[float]]
     mass_bob: float = None
     mass_cart: float = None
+    mass_total: float | None = None
     height_cart: float = None
     length_rod: float = None
     gravity: float = None
