@@ -8,6 +8,9 @@ from models.env import ProblemEnv
 from environments.pendulum_env import PendulumEnv
 from models.simulator import Simulator
 from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import SubprocVecEnv
+import multiprocessing as mp
 
 # from visualizers.pendulum import PendulumVisualizer
 import torch
@@ -15,9 +18,24 @@ import log
 import logging
 import numpy as np
 
-from stable_baselines3 import A2C
+from stable_baselines3 import A2C, DDPG
+
+def make_env(rank, scale_factor):
+    def _init():
+        env = PendulumEnv(
+            problem, time_step=0.01, max_steps=1000,
+            term_radius=0.1, action_bounds=[(-1, 1)], scale_factor=scale_factor
+        )
+        return env
+    return _init
+
+N_ENVS = 16  # or os.cpu_count()
 
 if __name__ == "__main__":
+    mp.set_start_method("fork", force=True) # MacOS needs this
+    import os
+    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
     Hyperparams_obj = Hyperparams.from_yaml("yamls/unfreeze_ip.yaml")
     logger = log.get_logger("main")
     logger.setLevel(logging.INFO if not Hyperparams_obj.hyper_params.debug else logging.DEBUG)
@@ -25,22 +43,19 @@ if __name__ == "__main__":
 
     problem = damped_inverted_pendulum(Hyperparams_obj)
 
-    scale_factor = 10
+    scale_factor = 20
 
-    train_env = PendulumEnv(
-        problem, time_step=0.01, max_steps=1000,
-        term_radius=0.1, action_bounds=[(-1, 1)], scale_factor=scale_factor
-    )
-    check_env(train_env, warn=True)
+    train_env = SubprocVecEnv([make_env(i, scale_factor) for i in range(N_ENVS)])
+    # check_env(train_env, warn=True)
 
-    model = A2C("MlpPolicy", train_env)
+    model = DDPG("MlpPolicy", train_env)
     model.learn(total_timesteps=500_000, progress_bar=True)
     train_env.close()
 
     eval_env = PendulumEnv(
         problem, time_step=0.01, max_steps=1000,
         term_radius=0.1, action_bounds=[(-1, 1)],
-        render_mode="human", width=600, height=400,
+        render_mode="human", width=600, height=400, scale_factor=scale_factor
     )
 
     obs, _ = eval_env.reset()
