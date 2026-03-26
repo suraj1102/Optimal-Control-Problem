@@ -14,7 +14,7 @@ problem_params:
   Q: [[1.0, 0.0], [0.0, 1.0]]
   R: [[1.0]]
 
-  mass_bob: 0.2
+  mass_bob: 0.1
   length_rod: 1.0
   gravity: 9.81
   gamma: 0.1 # Damping Coef

@@ -78,7 +78,14 @@ class ProblemEnv(gym.Env):
             if prob_name == "inverted-pendulum":
                 x_next[:, 0] = (x_next[:, 0] + torch.pi) % (2 * torch.pi) - torch.pi
 
-        reward = self._lqr_reward(x_next, u)
+        # reward = self._lqr_reward(x_next, u) - self._steps * 0.5
+
+        theta = x[0, 0]
+        omega = x[0, 1]
+
+        reward = torch.cos(theta) + 0.1 * omega**2 + 0.01 * u**2
+        reward = -reward
+        reward = reward.item()
 
         self._state = x_next
         self._steps += 1

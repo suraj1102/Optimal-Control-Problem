@@ -1,24 +1,21 @@
-from architectures.pinn import Pinn
-from architectures.xtfc_unfreeze import XTFC_Unfreeze
-from architectures.xtfc import XTFC
 from models.hparams import Hyperparams
-from problems.inverted_pendulum import inverted_pendulum
 from problems.damped_inverted_pendulum import damped_inverted_pendulum
-from models.env import ProblemEnv
 from environments.pendulum_env import PendulumEnv
-from models.simulator import Simulator
-from stable_baselines3.common.env_checker import check_env
+from stable_baselines3 import A2C, DDPG
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import SubprocVecEnv
-import multiprocessing as mp
-
-# from visualizers.pendulum import PendulumVisualizer
 import torch
 import log
 import logging
 import numpy as np
+import random
+import multiprocessing as mp
 
-from stable_baselines3 import A2C, DDPG
+seed = 69420
+
+random.seed(seed)
+np.random.seed(seed)       # NumPy
+torch.manual_seed(seed)    # PyTorch (CPU)
 
 def make_env(rank, scale_factor):
     def _init():
@@ -29,7 +26,7 @@ def make_env(rank, scale_factor):
         return env
     return _init
 
-N_ENVS = 16  # or os.cpu_count()
+N_ENVS = 32 # or os.cpu_count()
 
 if __name__ == "__main__":
     mp.set_start_method("fork", force=True) # MacOS needs this
@@ -43,13 +40,12 @@ if __name__ == "__main__":
 
     problem = damped_inverted_pendulum(Hyperparams_obj)
 
-    scale_factor = 20
+    scale_factor = 1
 
     train_env = SubprocVecEnv([make_env(i, scale_factor) for i in range(N_ENVS)])
-    # check_env(train_env, warn=True)
 
-    model = DDPG("MlpPolicy", train_env)
-    model.learn(total_timesteps=500_000, progress_bar=True)
+    model = DDPG("MlpPolicy", train_env, seed=seed)
+    model.learn(total_timesteps=100_000, progress_bar=True)
     train_env.close()
 
     eval_env = PendulumEnv(
@@ -61,7 +57,6 @@ if __name__ == "__main__":
     obs, _ = eval_env.reset()
     for _ in range(1000):
         action, _ = model.predict(obs, deterministic=True)
-        action *= scale_factor
 
         obs, reward, terminated, truncated, _ = eval_env.step(action)
         eval_env.render()
@@ -70,5 +65,6 @@ if __name__ == "__main__":
 
         if terminated or truncated:
             obs, _ = eval_env.reset()
+            print(terminated, truncated)
     eval_env.close()
 
