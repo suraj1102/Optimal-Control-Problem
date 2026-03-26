@@ -25,14 +25,16 @@ if __name__ == "__main__":
 
     problem = damped_inverted_pendulum(Hyperparams_obj)
 
+    scale_factor = 10
+
     train_env = PendulumEnv(
         problem, time_step=0.01, max_steps=1000,
-        term_radius=0.1, action_bounds=[(-1, 1)],
+        term_radius=0.1, action_bounds=[(-1, 1)], scale_factor=scale_factor
     )
     check_env(train_env, warn=True)
 
     model = A2C("MlpPolicy", train_env)
-    model.learn(total_timesteps=100_000, progress_bar=True)
+    model.learn(total_timesteps=500_000, progress_bar=True)
     train_env.close()
 
     eval_env = PendulumEnv(
@@ -44,6 +46,8 @@ if __name__ == "__main__":
     obs, _ = eval_env.reset()
     for _ in range(1000):
         action, _ = model.predict(obs, deterministic=True)
+        action *= scale_factor
+
         obs, reward, terminated, truncated, _ = eval_env.step(action)
         eval_env.render()
 
