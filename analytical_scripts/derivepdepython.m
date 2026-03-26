@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-f_x = 
-
-g_x = 
-=======
 % Define System Dynamics
-syms x1, x2, x3, x4 real
+syms x1, x2, x3, x4, real
 syms u1 real
 syms M, m, l, g, real
 
@@ -25,7 +20,6 @@ g_x = [
     0;
     den;
   ];
->>>>>>> a9ffe4d64bbd59b9cbe468dc4cc7e4294f794ad2
 
 % Define LQR Loss
 L = x'*Q*x + u'*R*u;

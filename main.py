@@ -5,7 +5,7 @@ from models.hparams import Hyperparams
 from problems.inverted_pendulum import inverted_pendulum
 from problems.damped_inverted_pendulum import damped_inverted_pendulum
 from models.simulator import Simulator
-# from visualizers.pendulum import PendulumVisualizer
+from visualizers.pendulum import PendulumVisualizer
 import torch
 import log
 import logging
@@ -35,8 +35,8 @@ if __name__ == "__main__":
         patience=50,
         random=True,
         ranges = [[-np.pi, np.pi], [-5.0, 5.0]],
-        plot=False
+        plot=True
     )
 
-    # visualizer = PendulumVisualizer(model, problem, time_step=0.01, initial_state=x0)
-    # visualizer.run()
+    visualizer = PendulumVisualizer(model, problem, time_step=0.01, initial_state=x0)
+    visualizer.run()
