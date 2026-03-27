@@ -83,8 +83,7 @@ class ProblemEnv(gym.Env):
         theta = x[0, 0]
         omega = x[0, 1]
 
-        reward = torch.cos(theta) + 0.1 * omega**2 + 0.01 * u**2
-        reward = -reward
+        reward = torch.cos(theta) - 0.1 * omega**2 - 0.01 * u**2
         reward = reward.item()
 
         self._state = x_next

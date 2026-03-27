@@ -1,7 +1,7 @@
 from models.hparams import Hyperparams
 from problems.damped_inverted_pendulum import damped_inverted_pendulum
 from environments.pendulum_env import PendulumEnv
-from stable_baselines3 import A2C, DDPG
+from stable_baselines3 import A2C, DDPG, SAC
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import SubprocVecEnv
 import torch
@@ -44,8 +44,8 @@ if __name__ == "__main__":
 
     train_env = SubprocVecEnv([make_env(i, scale_factor) for i in range(N_ENVS)])
 
-    model = DDPG("MlpPolicy", train_env, seed=seed)
-    model.learn(total_timesteps=100_000, progress_bar=True)
+    model = SAC("MlpPolicy", train_env, seed=seed)
+    model.learn(total_timesteps=500_000, progress_bar=True)
     train_env.close()
 
     eval_env = PendulumEnv(
