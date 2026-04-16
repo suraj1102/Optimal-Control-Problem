@@ -47,7 +47,7 @@ class ProblemEnv(gym.Env):
     def _lqr_reward(self, x: torch.Tensor, u: torch.Tensor) -> float:
         x_cost = (x @ self.Q @ x.T).squeeze()
         u_cost = (u @ self.R @ u.T).squeeze()
-        return -(x_cost + u_cost).item()
+        return -(x_cost + u_cost)
 
     # ------------------------------------------------------------------
     # Gymnasium API
@@ -78,12 +78,12 @@ class ProblemEnv(gym.Env):
             if prob_name == "inverted-pendulum":
                 x_next[:, 0] = (x_next[:, 0] + torch.pi) % (2 * torch.pi) - torch.pi
 
-        # reward = self._lqr_reward(x_next, u) - self._steps * 0.5
+        reward = self._lqr_reward(x_next, u) 
 
-        theta = x[0, 0]
-        omega = x[0, 1]
+        # theta = x[0, 0]
+        # omega = x[0, 1]
 
-        reward = torch.cos(theta) - 0.1 * omega**2 - 0.01 * u**2
+        # reward = torch.cos(theta) - 0.1 * omega**2 - 0.01 * u**2
         reward = reward.item()
 
         self._state = x_next

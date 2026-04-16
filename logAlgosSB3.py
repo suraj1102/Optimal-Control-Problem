@@ -34,18 +34,18 @@ LOG_DIR          = "algo_logs"
 MODEL_DIR        = "algo_models"
 
 ALGO_REGISTRY = {
-    "SAC":  SAC,
-    "TD3":  TD3,
+    # "SAC":  SAC,
+    # "TD3":  TD3,
     "DDPG": DDPG,
-    "A2C":  A2C,
-    "PPO":  PPO,
+    # "A2C":  A2C,
+    # "PPO":  PPO,
 }
 
-try:
-    from sb3_contrib import TQC
-    ALGO_REGISTRY["TQC"] = TQC
-except ImportError:
-    pass
+# try:
+#     from sb3_contrib import TQC
+#     ALGO_REGISTRY["TQC"] = TQC
+# except ImportError:
+#     pass
 
 
 # ── Env factories ─────────────────────────────────────────────────────────────
