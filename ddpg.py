@@ -14,25 +14,25 @@ import gc
 import time
 import resource
 
-# Seeding 
+# Seeding
 seed = 69420
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-# Config 
-TOTAL_TIMESTEPS  = 1_000_000
-N_ENVS           = 32
-N_EVAL_ROLLOUTS  = 20        # number of full episodes to average at eval time
-SCALE_FACTOR     = 1
-YAML_PATH        = "yamls/unfreeze_ip.yaml"
-LOG_DIR          = "algo_logs"
-MODEL_DIR        = "algo_models"
-
+# Config
+TOTAL_TIMESTEPS = 1_000_000
+N_ENVS = 32
+N_EVAL_ROLLOUTS = 20  # number of full episodes to average at eval time
+SCALE_FACTOR = 1
+YAML_PATH = "yamls/unfreeze_ip.yaml"
+LOG_DIR = "algo_logs"
+MODEL_DIR = "algo_models"
 
 
 def make_env_fn(problem, scale_factor):
     """Returns a zero-arg callable that creates one PendulumEnv."""
+
     def _init():
         return PendulumEnv(
             problem,
@@ -41,8 +41,9 @@ def make_env_fn(problem, scale_factor):
             term_radius=0.1,
             action_bounds=[(-1, 1)],
             scale_factor=scale_factor,
-            render_mode="human"
+            render_mode="human",
         )
+
     return _init
 
 
@@ -80,7 +81,6 @@ def main():
     eval_env = make_env_fn(problem, SCALE_FACTOR)()
     episode_returns = []
 
-
     for ep in range(N_EVAL_ROLLOUTS):
         obs, _ = eval_env.reset()
         done = False
@@ -98,16 +98,16 @@ def main():
         ep_return = sum(ep_rewards)
 
         episode_returns.append(ep_return)
-        logger.debug(f" EVAL: rollout {ep+1}/{N_EVAL_ROLLOUTS}: {ep_return:.3f}")
+        logger.debug(f" EVAL: rollout {ep + 1}/{N_EVAL_ROLLOUTS}: {ep_return:.3f}")
 
     eval_env.close()
     del model
 
     arr = np.array(episode_returns)
     mean_r = arr.mean()
-    std_r  = arr.std()
-    min_r  = arr.min()
-    max_r  = arr.max()
+    std_r = arr.std()
+    min_r = arr.min()
+    max_r = arr.max()
 
     logger.info(f"{mean_r=}")
     logger.info(f"{std_r=}")
@@ -132,19 +132,17 @@ def gymenv_only():
     def make_env_fn():
         def _init():
             return gym.make(ENV_ID)
+
         return _init
 
-    train_env = SubprocVecEnv(
-        [make_env_fn() for _ in range(N_ENVS)]
-    )
+    train_env = SubprocVecEnv([make_env_fn() for _ in range(N_ENVS)])
 
     train_env.reset()
 
     # ---- Action noise (DDPG needs exploration noise) ----
     n_actions = train_env.action_space.shape[-1]
     action_noise = NormalActionNoise(
-        mean=np.zeros(n_actions),
-        sigma=0.1 * np.ones(n_actions)
+        mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
     )
 
     # ---- Model ----
@@ -157,13 +155,10 @@ def gymenv_only():
     )
 
     # ---- Train ----
-    model.learn(
-        total_timesteps=TRAIN_STEPS, 
-        progress_bar=True
-        )
+    model.learn(total_timesteps=TRAIN_STEPS, progress_bar=True)
 
     # ---- Save (optional) ----
-    model.save("ddpg_pendulum")
+    model.save("./algo_models/ddpg_pendulum")
 
     # ---- Evaluation loop: 20 envs one by one ----
     for i in range(NUM_EVAL_ENVS):
@@ -179,11 +174,11 @@ def gymenv_only():
             obs, reward, done, truncated, _ = env.step(action)
             ep_reward += reward
 
-        print(f"Env {i+1}: episode reward = {ep_reward:.2f}")
+        print(f"Env {i + 1}: episode reward = {ep_reward:.2f}")
         env.close()
 
     train_env.close()
 
+
 if __name__ == "__main__":
     main()
-
