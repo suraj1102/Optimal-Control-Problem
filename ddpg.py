@@ -2,32 +2,30 @@ from models.hparams import Hyperparams
 from problems.damped_inverted_pendulum import damped_inverted_pendulum
 from environments.pendulum_env import PendulumEnv
 from stable_baselines3 import A2C, DDPG, SAC, TD3, PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv
 import torch
 import log
 import logging
 import numpy as np
+import matplotlib.pyplot as plt
 import random
-import multiprocessing as mp
-import os
-import gc
-import time
-import resource
 
 # Seeding
-seed = 69420
+seed = 7
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
 # Config
-TOTAL_TIMESTEPS = 1_000_000
+TOTAL_TIMESTEPS = 5_000_000
 N_ENVS = 32
-N_EVAL_ROLLOUTS = 20  # number of full episodes to average at eval time
+N_EVAL_ROLLOUTS = 100  # number of full episodes to average at eval time
 SCALE_FACTOR = 1
 YAML_PATH = "yamls/unfreeze_ip.yaml"
 LOG_DIR = "algo_logs"
 MODEL_DIR = "algo_models"
+LOAD_MODEL = False
+MODEL_PATH = "algo_models/ddpg_pendulum.zip"
 
 
 def make_env_fn(problem, scale_factor):
@@ -57,19 +55,22 @@ def main():
 
     problem = damped_inverted_pendulum(Hyperparams_obj)
 
-    # Train
-    logger.info("Training")
-
     train_env = SubprocVecEnv(
         [make_env_fn(problem, SCALE_FACTOR) for _ in range(N_ENVS)]
     )
 
-    model = DDPG("MlpPolicy", train_env, seed=seed, verbose=2)
-    model.learn(
-        total_timesteps=TOTAL_TIMESTEPS,
-        progress_bar=True,
-        reset_num_timesteps=True,
-    )
+    if LOAD_MODEL:
+        logger.info("Loading Model")
+        model = DDPG.load(MODEL_PATH, env=train_env, seed=seed)
+    else:
+        logger.info("Training")
+        model = DDPG("MlpPolicy", train_env, seed=seed, verbose=2)
+        model.learn(
+            total_timesteps=TOTAL_TIMESTEPS,
+            progress_bar=True,
+            reset_num_timesteps=True,
+        )
+        model.save(MODEL_PATH)
 
     train_env.close()
 
@@ -80,6 +81,7 @@ def main():
     # Single eval env for clean episode boundaries
     eval_env = make_env_fn(problem, SCALE_FACTOR)()
     episode_returns = []
+    cumulative_rewards = []
 
     for ep in range(N_EVAL_ROLLOUTS):
         obs, _ = eval_env.reset()
@@ -96,88 +98,53 @@ def main():
             done = terminated or truncated
 
         ep_return = sum(ep_rewards)
-
         episode_returns.append(ep_return)
+
+        cumulative = np.cumsum(ep_rewards)
+        cumulative_rewards.append(cumulative)
+
         logger.debug(f" EVAL: rollout {ep + 1}/{N_EVAL_ROLLOUTS}: {ep_return:.3f}")
 
     eval_env.close()
+
+    ## Plot
+
+    # Find max episode length
+    max_len = max(len(cr) for cr in cumulative_rewards)
+
+    # Pad with NaN (so ignored in mean)
+    padded = np.full((N_EVAL_ROLLOUTS, max_len), np.nan)
+
+    for i, cr in enumerate(cumulative_rewards):
+        padded[i, : len(cr)] = cr
+
+    # Mean and std ignoring NaNs
+    mean_curve = np.nanmean(padded, axis=0)
+    std_curve = np.nanstd(padded, axis=0)
+
+    # X axis
+    timesteps = np.arange(max_len)
+
+    plt.figure()
+
+    plt.plot(timesteps, mean_curve, label="Mean Return")
+    plt.fill_between(
+        timesteps,
+        mean_curve - std_curve,
+        mean_curve + std_curve,
+        alpha=0.3,
+        label="±1 std",
+    )
+
+    plt.xlabel("Timestep")
+    plt.ylabel("Cumulative Reward")
+    plt.title("Average Cumulative Reward (Evaluation)")
+    plt.legend()
+    plt.grid()
+
+    plt.show()
+
     del model
-
-    arr = np.array(episode_returns)
-    mean_r = arr.mean()
-    std_r = arr.std()
-    min_r = arr.min()
-    max_r = arr.max()
-
-    logger.info(f"{mean_r=}")
-    logger.info(f"{std_r=}")
-    logger.info(f"{min_r=}")
-    logger.info(f"{max_r=}")
-
-
-def gymenv_only():
-    import gymnasium as gym
-    import numpy as np
-    from stable_baselines3 import DDPG
-    from stable_baselines3.common.noise import NormalActionNoise
-
-    # ---- Config ----
-    ENV_ID = "Pendulum-v1"
-    TRAIN_STEPS = 1_000_000
-    EVAL_EPISODES_PER_ENV = 1
-    NUM_EVAL_ENVS = 20
-    SEED = 69420
-
-    # ---- Create training env ----
-    def make_env_fn():
-        def _init():
-            return gym.make(ENV_ID)
-
-        return _init
-
-    train_env = SubprocVecEnv([make_env_fn() for _ in range(N_ENVS)])
-
-    train_env.reset()
-
-    # ---- Action noise (DDPG needs exploration noise) ----
-    n_actions = train_env.action_space.shape[-1]
-    action_noise = NormalActionNoise(
-        mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
-    )
-
-    # ---- Model ----
-    model = DDPG(
-        "MlpPolicy",
-        train_env,
-        # action_noise=action_noise,
-        verbose=2,
-        seed=SEED,
-    )
-
-    # ---- Train ----
-    model.learn(total_timesteps=TRAIN_STEPS, progress_bar=True)
-
-    # ---- Save (optional) ----
-    model.save("./algo_models/ddpg_pendulum")
-
-    # ---- Evaluation loop: 20 envs one by one ----
-    for i in range(NUM_EVAL_ENVS):
-        env = gym.make(ENV_ID, render_mode="human")
-        obs, _ = env.reset(seed=SEED + i)
-
-        done = False
-        truncated = False
-        ep_reward = 0.0
-
-        while not (done or truncated):
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, truncated, _ = env.step(action)
-            ep_reward += reward
-
-        print(f"Env {i + 1}: episode reward = {ep_reward:.2f}")
-        env.close()
-
-    train_env.close()
 
 
 if __name__ == "__main__":

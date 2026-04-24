@@ -1,3 +1,5 @@
+- [] Add cumulative reward measurement
+
  - [] Fix Current Code
     - [x] Segregate Hparams logically
     - [x] Abstract f_x and g_x methods properly and define in child classes
