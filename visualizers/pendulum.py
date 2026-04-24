@@ -12,8 +12,13 @@ class PendulumVisualizer(PygameVisualizer):
         self.dt = time_step
         self.time = 0.0
         self.controller_enabled = True
+
+        if model is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+        else:
+            device = model.device
         
-        self.state = torch.tensor([[np.pi + 0.1, 0.0]], dtype=torch.float32, device=model.device) if initial_state is None else initial_state.to(model.device)
+        self.state = torch.tensor([[np.pi + 0.1, 0.0]], dtype=torch.float32, device=device) if initial_state is None else initial_state.to(device)
         
         # Trajectory history for plotting
         self.trajectory = []

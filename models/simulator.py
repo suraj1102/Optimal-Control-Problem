@@ -79,6 +79,7 @@ class Simulator():
         for x0 in x0_samples:
             trajectory, u, converged = self.generate_trajectory(x0, t_span, time_step, min_delta, patience)
             if plot:
+                print("Plot bro")
                 self.plot_trajectory_from_data(trajectory, u, time_step)
             if converged:
                 self.model.logger.info(f"Trajectory from {x0.cpu().detach().numpy()} converged.")

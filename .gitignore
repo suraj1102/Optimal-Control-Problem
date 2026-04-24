@@ -50,4 +50,6 @@ venv.bak/
 *.png
 *.pt
 
-dump.txt
+pinn_venv/
+algo_logs/
+algo_models/
