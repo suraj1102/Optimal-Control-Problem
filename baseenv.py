@@ -69,7 +69,7 @@ class BaseEnv(gym.Env):
         raise NotImplementedError
 
     def _reward(self, state: np.ndarray, action: np.ndarray) -> float:
-        return 0.0
+        raise NotImplementedError
 
     def _is_terminated(self, state: np.ndarray) -> bool:
         return False
