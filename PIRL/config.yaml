@@ -1,0 +1,19 @@
+experiment_name: "pendulum_pirl"
+algorithm: "Algo2"  # Options: Algo1, Algo2
+env_name: "Pendulum-v1"
+
+hyperparameters:
+  hidden_dim: 64
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  alpha_v: 1.0
+  beta_v: 50.0  # High weight for Lyapunov stability penalty
+
+cost_matrices:
+  Q: [1.0, 1.0, 0.1] # For [cos_th, sin_th, th_dot]
+  R: [0.1]
+
+sampling:
+  sobol_samples: 5000
+  segment_length: 10
+  dt: 0.02
