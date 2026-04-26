@@ -7,8 +7,8 @@ cost_matrices:
   R: [0.1]
 
 model_size:
-  actor: [10, 10, 10]
-  critic: [10, 10, 10]
+  actor: [10, 10]
+  critic: [10, 10]
 
 hyperparameters:
   batch_size: 100
@@ -24,4 +24,4 @@ training:
 sampling:
   sobol_samples: 5000
   segment_length: 10
-  dt: 0.02
+  dt: 0.05
