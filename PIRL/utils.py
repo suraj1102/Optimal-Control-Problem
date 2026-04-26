@@ -1,8 +1,21 @@
 from scipy.stats import qmc
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
+import gymnasium as gym
 
-class manager:
+def sample_states(env: gym.Env, n_samples: int):
+    """Sample Sobol points from the state space of the given environment."""
+    state_dim = env.observation_space.shape[0]
+    sampler = qmc.Sobol(d=state_dim, scramble=True)
+    raw_samples = sampler.random(n=n_samples)
+    low = env.observation_space.low
+    high = env.observation_space.high
+    samples = low + raw_samples * (high - low)
+    return torch.tensor(samples, dtype=torch.float32)
+
+
+class Manager:
     def __init__(self, env, config):
         self.env = env
         self.cfg = config
@@ -17,6 +30,7 @@ class manager:
         return low + raw_samples * (high - low)
 
     def collect_integral_batch(self, agent, initial_states, segment_length=10):
+        # TODO: wtf is this function doing
         # Use the dt and environment from self
         dt = self.env.unwrapped.dt
         batch_s, batch_sn, batch_a, batch_cost = [], [], [], []
@@ -25,32 +39,36 @@ class manager:
             # Re-initialize to the sampled state
             self.env.reset()
             self.env.unwrapped.state = s_start
-            
+
             s_tensor = torch.tensor(s_start, dtype=torch.float32)
             # Use the current actor to decide the action for this segment
             action = agent.actor(s_tensor).detach().numpy()
-            
+
             integral_cost = 0
             current_s = s_start
-            
+
             for _ in range(segment_length):
                 # Calculate cost: x'Qx + u'Ru
                 # Ensure agent.Q/R are tensors; converting to numpy for the math
-                step_cost = (current_s @ agent.Q.numpy() @ current_s + 
-                            action @ agent.R.numpy() @ action)
-                
+                step_cost = (
+                    current_s @ agent.Q.numpy() @ current_s
+                    + action @ agent.R.numpy() @ action
+                )
+
                 integral_cost += step_cost * dt
-                
+
                 # Apply action to move the physics forward
                 current_s, _, _, _, _ = self.env.step(action)
-                
+
             # Store the trajectory endpoints and the integral
             batch_s.append(s_start)
             batch_sn.append(current_s)
             batch_a.append(action)
             batch_cost.append(integral_cost)
 
-        return (torch.tensor(np.array(batch_s), dtype=torch.float32),
-                torch.tensor(np.array(batch_sn), dtype=torch.float32),
-                torch.tensor(np.array(batch_a), dtype=torch.float32),
-                torch.tensor(np.array(batch_cost), dtype=torch.float32))
+        return (
+            torch.tensor(np.array(batch_s), dtype=torch.float32),
+            torch.tensor(np.array(batch_sn), dtype=torch.float32),
+            torch.tensor(np.array(batch_a), dtype=torch.float32),
+            torch.tensor(np.array(batch_cost), dtype=torch.float32),
+        )

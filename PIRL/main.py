@@ -2,65 +2,77 @@ import yaml
 import gymnasium as gym
 import PIRL
 import utils
-import model
+import SystemModels
 import os
+import numpy as np
+from train import trainAlgo2, Algo1Trainer
+
+
 
 def main():
-    # 1. Load configuration
+    print("HELLO--")
+    
+    # Set all seeds for reproducibility
+    import random
+    import torch
+    seed = 7
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    gym.utils.seeding.np_random(seed)
+
+    # Set torch device
+    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
+    print(f"Using torch device: {device}")
+    
+
+    # Load config
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "config.yaml")
 
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
-    # 2. Setup Infrastructure
-    env = gym.make(config['env_name'])
-    manager = utils.manager(env, config)
-    
-    # 3. Instantiate Agent based on Algorithm selection
-    if config['algorithm'] == "Algo2":
+    print("Config Loaded")
+
+    # Setup env
+    env = gym.make(config["env_name"])
+    manager = utils.Manager(env, config)
+
+    print("ENV created")
+
+    # Instantiate Agent based on Algorithm selection
+    if config["algorithm"] == "Algo2":
         agent = PIRL.Algo2(config, env)
-        
-        # --- PHASE 1: Admissible Policy Initialization ---
+
+        # NOTE: Algo 2 Phase 1: Admissible Policy Initialization
         print("Starting Phase 1: Admissible Policy Search...")
-        for i in range(config['init_epochs']):
-            states = manager.get_sobol_samples(config['batch_size'])
+        for i in range(config["init_epochs"]):
+            states = manager.get_sobol_samples(config["batch_size"])
             batch = manager.collect_integral_batch(agent, states)
             loss = agent.initialize_policy(batch, P_matrix=np.eye(agent.state_dim))
-            if i % 10 == 0: print(f"Init Epoch {i} | Loss: {loss:.4f}")
-            
-    else:
-        # Algo 1 requires an explicit dynamic model
-        model = model.PendulumModel()
-        agent = PIRL.Algo1(config, env, model)
+            if i % 10 == 0:
+                print(f"Init Epoch {i} | Loss: {loss:.4f}")
 
-    # --- PHASE 2 & 3: Iterative Policy Iteration ---
+    else:
+        # NOTE: Algo 1 requires an explicit dynamic model
+        system_model = SystemModels.PendulumModel()
+        agent = PIRL.Algo1(env, config, system_model)
+
+    print("agent instantiated")
+
+    # NOTE: Phase 2 & 3: Iterative Policy Iteration
     print(f"Starting {config['algorithm']} Main Training...")
     actor_losses, critic_losses = [], []
-    
-    for epoch in range(config['total_epochs']):
-        # Collect Data
-        states = manager.get_sobol_samples(config['batch_size'])
-        
-        # Training Update
-        if config['algorithm'] == "Algo2":
-            batch = manager.collect_integral_batch(agent, states)
-            loss_c = agent.train_step(batch)
-            loss_a = 0 # Algo 2 computes actor loss inside train_step
-        else:
-            batch = manager.collect_standard_batch(agent, states)
-            loss_c = agent.train_step(batch, model.f)
-            loss_a = 0
-            
-        actor_losses.append(loss_a)
-        critic_losses.append(loss_c)
-        
-        if epoch % 50 == 0:
-            print(f"Epoch {epoch} | Critic Loss: {loss_c:.4f}")
-            manager.plot_controller_behavior(agent, epoch)
 
-    # 4. Final Analysis
-    manager.plot_convergence(actor_losses, critic_losses)
-
+    # TODO: Model training
+    if config["algorithm"] == "Algo2":
+        actor_losses, critic_losses = trainAlgo2(agent)
+    else:
+        trainer = Algo1Trainer(agent)
+        trainer.run()
+        
 if __name__ == "__main__":
     main()
