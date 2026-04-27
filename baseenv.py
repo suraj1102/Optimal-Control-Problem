@@ -42,7 +42,6 @@ class BaseEnv(gym.Env):
     def reset(self, *, seed: Optional[int] = None, options=None):
         super().reset(seed=seed)
         self.step_count = 0
-
         self.state = self._initial_state()
         return self._get_obs(), {}
 

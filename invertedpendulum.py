@@ -22,10 +22,8 @@ class InvertedPendulumEnv(BaseEnv):
         mass: float = 1,
         success_termination: Optional[tuple] = None,
         failure_termination: Optional[tuple] = None,
+        theta_dot_limit: Optional[tuple] = (-8, 8),
     ):
-        super().__init__(
-            dt, max_steps, action_low, action_high, state_dim, action_dim, seed
-        )
         self.damping_factor = damping_factor
         self.gravity = gravity
         self.length = length
@@ -35,6 +33,10 @@ class InvertedPendulumEnv(BaseEnv):
         self.init_range = init_range
         self.success_termination = success_termination
         self.failure_termination = failure_termination
+
+        super().__init__(
+            dt, max_steps, action_low, action_high, state_dim, action_dim, seed
+        )
 
     def _initial_state(self) -> np.ndarray:
         low = np.array([b[0] for b in self.init_range])
@@ -55,6 +57,8 @@ class InvertedPendulumEnv(BaseEnv):
 
         new_theta_dot = theta_dot + self.dt * theta_ddot
         new_theta = theta + self.dt * new_theta_dot
+
+        new_theta = (new_theta + np.pi) % (2 * np.pi) - np.pi  # wrap to -pi to pi
         return np.array([new_theta, new_theta_dot], dtype=np.float32)
 
     def _reward(self, state: np.ndarray, action: np.ndarray) -> float:

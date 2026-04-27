@@ -53,3 +53,4 @@ venv.bak/
 pinn_venv/
 algo_logs/
 algo_models/
+outputs/
