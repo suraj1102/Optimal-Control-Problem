@@ -8,6 +8,7 @@ from stable_baselines3 import PPO, SAC, TD3, A2C, DDPG
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import VecMonitor
 
 from training.rewards import make_reward_quadratic
 from training.disturbances import DISTURB_FNS
@@ -23,7 +24,7 @@ for d in (PLOT_DIR, MODEL_DIR, RESULTS_DIR):
     os.makedirs(d, exist_ok=True)
 
 
-def make_env(reward_fn, disturb_fn, env_kwargs: dict, seed: int = 0):
+def make_env(reward_fn, disturb_fn, env_kwargs: dict):
     from invertedpendulum import InvertedPendulumEnv
 
     def _fn():
@@ -32,7 +33,7 @@ def make_env(reward_fn, disturb_fn, env_kwargs: dict, seed: int = 0):
             disturb_fn=disturb_fn,
             **env_kwargs,
         )
-        return Monitor(env)
+        return env
 
     return _fn
 
@@ -72,6 +73,11 @@ def train_experiment(exp: dict) -> dict:
 
     env_fn = make_env(reward_fn, disturb_fn, env_kwargs)
     vec_env = make_vec_env(env_fn, n_envs=n_envs)
+
+    monitor_path = os.path.join(RESULTS_DIR, run_name)
+    os.makedirs(monitor_path, exist_ok=True)
+
+    vec_env = VecMonitor(vec_env, filename=monitor_path)
 
     model = model_cls(env=vec_env, **model_kwargs)
 
@@ -180,7 +186,7 @@ def generate_experiments(
                 ent_coef="auto",
                 verbose=0,
             ),
-            n_envs=1,
+            n_envs=8,
         ),
         # ───────────────────────── TD3 ─────────────────────────
         "TD3": dict(
@@ -199,7 +205,7 @@ def generate_experiments(
                 target_noise_clip=0.5,
                 verbose=0,
             ),
-            n_envs=1,
+            n_envs=8,
         ),
         # ───────────────────────── DDPG ─────────────────────────
         "DDPG": dict(
@@ -215,7 +221,7 @@ def generate_experiments(
                 gradient_steps=1,
                 verbose=0,
             ),
-            n_envs=1,
+            n_envs=8,
         ),
     }
 
