@@ -65,13 +65,10 @@ class InvertedPendulumEnv(BaseEnv):
     def _dynamics_torch(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         theta = state[:, 0]
         theta_dot = state[:, 1]
-        try:
-            u = action[:, 0]
-        finally:
-            u = action[:]
+        u = action[:, 0]  # shape: [batch]
 
         theta_ddot = (
-            self.gravity / self.length * np.sin(theta)
+            self.gravity / self.length * torch.sin(theta)
             - (self.damping_factor / self.mass) * theta_dot
             + u / (self.mass * self.length**2)
         )
@@ -80,7 +77,9 @@ class InvertedPendulumEnv(BaseEnv):
         new_theta_dot = theta_dot + self.dt * theta_ddot
         new_theta = theta + self.dt * new_theta_dot
 
-        new_theta = (new_theta + np.pi) % (2 * np.pi) - np.pi  # wrap to -pi to pi
+        new_theta = (new_theta + torch.pi) % (2 * torch.pi) - torch.pi  # wrap to -pi to pi
+
+        # Stack along dim=1 to get shape [batch, 2]
         return torch.stack([new_theta, new_theta_dot], dim=1)
 
     def _reward(self, state: np.ndarray, action: np.ndarray) -> float:
