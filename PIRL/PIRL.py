@@ -37,7 +37,7 @@ class PIRL:
 class Algo1(PIRL):
     def __init__(self, env, config, system_dynamics_model):
         super().__init__(env, config)
-        self.F = system_dynamics_model.F
+        self.F = system_dynamics_model
 
     def compute_hamiltonian(self, states, actions):
         states.requires_grad_(True)

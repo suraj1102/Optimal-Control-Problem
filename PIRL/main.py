@@ -2,11 +2,30 @@ import yaml
 import gymnasium as gym
 import PIRL
 import utils
-import SystemModels
 import os
 import numpy as np
 from train import trainAlgo2, Algo1Trainer
 import torch
+import sys
+import os
+
+# Ensure imports work when running this file from within the "PIRL" directory.
+_here = os.path.dirname(os.path.abspath(__file__))
+_cwd = os.getcwd()
+
+if os.path.basename(_cwd).lower() == "pirl":
+    # running as: (repo)/PIRL$ python main.py  -> add repo root (parent of PIRL)
+    repo_root = os.path.abspath(os.path.join(_cwd, os.pardir))
+else:
+    # running from inside package tree -> add parent of this file (repo root candidate)
+    repo_root = os.path.abspath(os.path.join(_here, os.pardir))
+
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
+from invertedpendulum import InvertedPendulumEnv  # noqa: E402
+from training.rewards import make_reward_quadratic #noqa: E402
+from training.disturbances import DISTURB_FNS  # noqa: E402
 
 def plot_value_function(agent, env):
     import matplotlib.pyplot as plt
@@ -20,17 +39,12 @@ def plot_value_function(agent, env):
     n_theta = 100
     n_thetadot = 100
     theta_range = np.linspace(-np.pi, np.pi, n_theta)
-    # Use env.observation_space for thetadot limits
-    thetadot_low = env.observation_space.low[-1]
-    thetadot_high = env.observation_space.high[-1]
-    thetadot_range = np.linspace(thetadot_low, thetadot_high, n_thetadot)
+    thetadot_range = np.linspace(-4, 4, n_thetadot)
 
     Theta, Thetadot = np.meshgrid(theta_range, thetadot_range)
-    # Prepare state grid: (cos(theta), sin(theta), thetadot)
-    cos_theta = np.cos(Theta)
-    sin_theta = np.sin(Theta)
-    state_grid = np.stack([cos_theta, sin_theta, Thetadot], axis=-1)
-    state_grid_flat = state_grid.reshape(-1, 3)
+
+    state_grid = np.stack([Theta, Thetadot], axis=-1)
+    state_grid_flat = state_grid.reshape(-1, 2)
 
     # Evaluate value function
     with torch.no_grad():
@@ -122,11 +136,8 @@ def simulate_env_with_actor(agent, env: gym.Env, max_steps=200):
 
 
 def main():
-    print("HELLO--")
-
     # Set all seeds for reproducibility
     import random
-    import torch
 
     seed = 7
     random.seed(seed)
@@ -156,7 +167,22 @@ def main():
     print("Config Loaded")
 
     # Setup env
-    env = gym.make(config["env_name"], render_mode="human")
+    if config["env_name"] == "Pendulum-v1":
+        env = gym.make(config["env_name"], render_mode="human")
+    elif config["env_name"] == "myPendulum":
+        Q = config["cost_matrices"]["Q"]
+        R = config["cost_matrices"]["R"]
+        reward_fn = make_reward_quadratic(Q[0], Q[1], R[0], normalise=True)
+        env = InvertedPendulumEnv(
+            reward_fn=reward_fn,
+            disturb_fn=DISTURB_FNS["none"],
+            dt = 0.05,
+            max_steps=200,
+            seed=seed,
+            gravity=config["system_params"]["g"],
+            length=config["system_params"]["l"],
+            mass=config["system_params"]["m"]
+        )
     manager = utils.Manager(env, config)
 
     print("ENV created")
@@ -176,8 +202,7 @@ def main():
 
     else:
         # NOTE: Algo 1 requires an explicit dynamic model
-        system_model = SystemModels.PendulumModel()
-        agent = PIRL.Algo1(env, config, system_model)
+        agent = PIRL.Algo1(env, config, env._dynamics_torch)
 
     print("agent instantiated")
 
@@ -193,7 +218,7 @@ def main():
         actor_losses, critic_losses = trainer.run()
 
     plot_value_function(agent, env)
-    simulate_env_with_actor(agent, env)
+    # simulate_env_with_actor(agent, env)
 
 
 if __name__ == "__main__":

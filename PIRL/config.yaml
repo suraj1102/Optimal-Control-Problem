@@ -1,10 +1,16 @@
 experiment_name: "pendulum_pirl"
 algorithm: "Algo1"  # Options: Algo1, Algo2
-env_name: "Pendulum-v1"
+env_name: "myPendulum"
+
+system_params:
+  g: 10
+  l: 0.8
+  m: 0.1
+  normalize_states: false
 
 cost_matrices:
-  Q: [1.0, 1.0, 0.1] # For [cos_th, sin_th, th_dot]
-  R: [0.1]
+  Q: [1.0, 0.1] # For [th, th_dot]
+  R: [0.01]
 
 model_size:
   actor: [10, 10]

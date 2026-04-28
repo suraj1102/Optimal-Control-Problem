@@ -31,10 +31,10 @@ class Algo1Trainer:
             if torch.mps.is_available()
             else "cpu"
         )
-        self.kmax = int(self.config.get("kmax", 10))
-        self.epsilon_v = float(self.config.get("epsilon_v", 1e-2))
-        self.epsilon_u = float(self.config.get("epsilon_u", 1e-2))
-        self.Nepochs = int(self.config.get("Nepochs", 5_000))
+        self.kmax = int(self.config.get("kmax", 5))
+        self.epsilon_v = float(self.config.get("epsilon_v", 1))
+        self.epsilon_u = float(self.config.get("epsilon_u", 1))
+        self.Nepochs = int(self.config.get("Nepochs", 25_000))
         self.batch_size = int(self.config.get("batch_size", 2**12))
         self.print_every = int(self.config.get("print_every", 200))
         self.opt_actor = agent.opt_actor
@@ -57,7 +57,7 @@ class Algo1Trainer:
             y_init = torch.einsum("bi,ij,bj->b", x_init, self.Q, x_init).unsqueeze(1)
         self.criticNN.train()
         init_optimizer = torch.optim.Adam(self.criticNN.parameters(), lr=1e-2)
-        for init_iter in range(self.Nepochs):
+        for init_iter in range(10_000):
             idx = torch.randint(0, n_init, (256,))
             x_batch = x_init[idx]
             y_batch = y_init[idx]
@@ -105,11 +105,27 @@ class Algo1Trainer:
         self.L_v = torch.tensor(float("inf"), device=self.device)
         while self.L_v.item() > self.epsilon_v:
             self.criticNN.apply(init_weights)
+            self.actorNN.apply(init_weights)
             for epoch_iter in range(self.Nepochs):
                 states = sample_states(self.env, self.batch_size).to(self.device)
                 states.requires_grad_(True)
+
+                # # print network topology
+                # print(f"{self.actorNN.net=}")
+                # print(f"{self.criticNN.net=}")
+                # # print network weights
+                # print("Actor weights:")
+                # for name, param in self.actorNN.named_parameters():
+                #     print(f"{name} | shape={tuple(param.shape)} | mean={param.data.mean().item():.6f} | std={param.data.std().item():.6f}")
+                #     print(param.data.detach().cpu().numpy())
+                                # x = states
+                # for layer in self.actorNN.net:
+                #     x = layer(x)
+                #     print(layer, x)
+
                 with torch.no_grad():
                     actions = self.actorNN(states)
+
                 Fxu = self.F(states, actions)
 
                 # print(f"{states.shape=}\t{actions.shape=}\t{Fxu.shape=}")
@@ -148,7 +164,7 @@ class Algo1Trainer:
         for epoch_iter in range(self.Nepochs):
             states = sample_states(self.env, self.batch_size).to(self.device)
             states.requires_grad_(True)
-            
+
             actions = self.actorNN(states)
             Fxu = self.F(states, actions)
 

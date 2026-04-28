@@ -2,6 +2,8 @@
 import torch
 import torch.nn as nn
 
+#FIXME: state normalization - same fix as in utils sampler function
+
 
 def get_env_dims(env):
     state_dim = env.observation_space.shape[0]
@@ -74,11 +76,12 @@ class Actor(nn.Module):
         )
         self.action_low = torch.tensor(action_low, dtype=torch.float32)
         self.action_high = torch.tensor(action_high, dtype=torch.float32)
+        self.normalize_states = config.get("system_params", {}).get("normalize_states", False)
 
     def forward(self, state):
-        # Normalize state
-        norm_state = self.normalizer.normalize_state(state)
-        action = self.net(norm_state)
+        if self.normalize_states:
+            state = self.normalizer.normalize_state(state)
+        action = self.net(state)
         # Output in [-1, 1], scale to env action bounds
         scaled_action = self.normalizer.denormalize_action(action)
         return scaled_action
@@ -110,10 +113,12 @@ class AdmissibleNet(nn.Module):
         )
         self.action_low = torch.tensor(action_low, dtype=torch.float32)
         self.action_high = torch.tensor(action_high, dtype=torch.float32)
+        self.normalize_states = config.get("system_params", {}).get("normalize_states", False)
 
     def forward(self, state):
-        norm_state = self.normalizer.normalize_state(state)
-        action = self.net(norm_state)
+        if self.normalize_states:
+            state = self.normalizer.normalize_state(state)
+        action = self.net(state)
         scaled_action = self.normalizer.denormalize_action(action)
         return scaled_action
 
