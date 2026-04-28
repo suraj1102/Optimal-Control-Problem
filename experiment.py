@@ -10,7 +10,7 @@ from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecMonitor
 
-from training.rewards import make_reward_quadratic
+from training.rewards import make_reward_quadratic, make_reward_cos, make_reward_survival
 from training.disturbances import DISTURB_FNS
 from training.callbacks import RewardTrackingCallback, RolloutEvalCallback
 from training.evaluation import plot_training_curves
@@ -277,6 +277,12 @@ if __name__ == "__main__":
         "Q1_3.0_Q2_1.0_R_0.05_norm": make_reward_quadratic(
             3.0, 1.0, 0.05, normalise=True
         ),
+        "cos_Q1_1.0_Q2_0.1_R_0.01": make_reward_cos(1.0, 0.1, 0.01),
+        "cos_Q1_5.0_Q2_0.5_R_0.05": make_reward_cos(5.0, 0.5, 0.05),
+        "cos_Q1_1.0_Q2_1.0_R_0.1": make_reward_cos(1.0, 1.0, 0.1),
+        "survival_3": make_reward_survival(deg_threshold=3),
+        "survival_6": make_reward_survival(deg_threshold=6),
+        "survival_12": make_reward_survival(deg_threshold=12),
     }
 
     disturbances = {"no_disturbance": DISTURB_FNS["none"]}
