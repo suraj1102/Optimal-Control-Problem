@@ -1,6 +1,7 @@
 from baseenv import BaseEnv
 import numpy as np
 from typing import Optional, Callable
+import torch
 
 
 class InvertedPendulumEnv(BaseEnv):
@@ -60,6 +61,27 @@ class InvertedPendulumEnv(BaseEnv):
 
         new_theta = (new_theta + np.pi) % (2 * np.pi) - np.pi  # wrap to -pi to pi
         return np.array([new_theta, new_theta_dot], dtype=np.float32)
+
+    def _dynamics_torch(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        theta = state[:, 0]
+        theta_dot = state[:, 1]
+        try:
+            u = action[:, 0]
+        finally:
+            u = action[:]
+
+        theta_ddot = (
+            self.gravity / self.length * np.sin(theta)
+            - (self.damping_factor / self.mass) * theta_dot
+            + u / (self.mass * self.length**2)
+        )
+
+        # Euler Integration
+        new_theta_dot = theta_dot + self.dt * theta_ddot
+        new_theta = theta + self.dt * new_theta_dot
+
+        new_theta = (new_theta + np.pi) % (2 * np.pi) - np.pi  # wrap to -pi to pi
+        return torch.stack([new_theta, new_theta_dot], dim=1)
 
     def _reward(self, state: np.ndarray, action: np.ndarray) -> float:
         return self.reward_fn(state, action)
