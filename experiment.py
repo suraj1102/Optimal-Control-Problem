@@ -19,6 +19,7 @@ OUTPUT_DIR = "outputs"
 PLOT_DIR = os.path.join(OUTPUT_DIR, "plots")
 MODEL_DIR = os.path.join(OUTPUT_DIR, "models")
 RESULTS_DIR = os.path.join(OUTPUT_DIR, "results")
+N_ENVS = 42
 
 for d in (PLOT_DIR, MODEL_DIR, RESULTS_DIR):
     os.makedirs(d, exist_ok=True)
@@ -154,7 +155,7 @@ def generate_experiments(
                 ent_coef=0.0,
                 verbose=0,
             ),
-            n_envs=8,
+            n_envs=N_ENVS,
         ),
         # ───────────────────────── A2C ─────────────────────────
         "A2C": dict(
@@ -169,7 +170,7 @@ def generate_experiments(
                 vf_coef=0.5,
                 verbose=0,
             ),
-            n_envs=8,
+            n_envs=N_ENVS,
         ),
         # ───────────────────────── SAC ─────────────────────────
         "SAC": dict(
@@ -186,7 +187,7 @@ def generate_experiments(
                 ent_coef="auto",
                 verbose=0,
             ),
-            n_envs=8,
+            n_envs=N_ENVS,
         ),
         # ───────────────────────── TD3 ─────────────────────────
         "TD3": dict(
@@ -205,7 +206,7 @@ def generate_experiments(
                 target_noise_clip=0.5,
                 verbose=0,
             ),
-            n_envs=8,
+            n_envs=N_ENVS,
         ),
         # ───────────────────────── DDPG ─────────────────────────
         "DDPG": dict(
@@ -221,7 +222,7 @@ def generate_experiments(
                 gradient_steps=1,
                 verbose=0,
             ),
-            n_envs=8,
+            n_envs=N_ENVS,
         ),
     }
 
