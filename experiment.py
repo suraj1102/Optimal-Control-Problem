@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 from functools import partial
 from copy import deepcopy
+import itertools
 
 from stable_baselines3 import PPO, SAC, TD3, A2C, DDPG
 from stable_baselines3.common.env_util import make_vec_env
@@ -10,7 +11,11 @@ from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecMonitor
 
-from training.rewards import make_reward_quadratic, make_reward_cos, make_reward_survival
+from training.rewards import (
+    make_reward_quadratic,
+    make_reward_cos,
+    make_reward_survival,
+)
 from training.disturbances import DISTURB_FNS
 from training.callbacks import RewardTrackingCallback, RolloutEvalCallback
 from training.evaluation import plot_training_curves
@@ -137,6 +142,7 @@ def generate_experiments(
     disturb_fns: dict,
     base_env_kwargs: dict,
     total_steps: int = 1_000_000,
+    exp_name: str = "",
 ):
     MODEL_CONFIGS = {
         # ───────────────────────── PPO ─────────────────────────
@@ -193,7 +199,7 @@ def generate_experiments(
             model_cls=TD3,
             model_kwargs=dict(
                 policy="MlpPolicy",
-                learning_rate=3e-4,  # ↓ fixed (3e-3 is too high)
+                learning_rate=3e-4,
                 buffer_size=200_000,
                 batch_size=256,
                 gamma=0.99,
@@ -230,7 +236,7 @@ def generate_experiments(
     for model_name, model_cfg in MODEL_CONFIGS.items():
         for reward_name, reward_fn in reward_fns.items():
             for disturb_name, disturb_fn in disturb_fns.items():
-                run_name = f"{model_name}_{reward_name}_{disturb_name}"
+                run_name = f"{model_name}_{reward_name}_{disturb_name}_{exp_name}"
 
                 exp = dict(
                     run_name=run_name,
@@ -248,6 +254,24 @@ def generate_experiments(
                 experiments.append(exp)
 
     return experiments
+
+
+def generate_reward_grid(Q1_vals, Q2_vals, R_vals, norms, survival_thresholds):
+    rewards = {}
+
+    for Q1, Q2, R, norm in itertools.product(Q1_vals, Q2_vals, R_vals, norms):
+        name = f"Q1_{Q1}_Q2_{Q2}_R_{R}" + ("_norm" if norm else "")
+        rewards[name] = make_reward_quadratic(Q1, Q2, R, normalise=norm)
+
+    for Q1, Q2, R in itertools.product(Q1_vals, Q2_vals, R_vals):
+        name = f"cos_Q1_{Q1}_Q2_{Q2}_R_{R}"
+        rewards[name] = make_reward_cos(Q1, Q2, R)
+
+    for deg in survival_thresholds:
+        name = f"survival_{deg}"
+        rewards[name] = make_reward_survival(deg_threshold=deg)
+
+    return rewards
 
 
 def main(experiments):
