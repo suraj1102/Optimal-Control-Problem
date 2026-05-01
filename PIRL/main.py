@@ -7,7 +7,6 @@ import numpy as np
 from train import trainAlgo2, Algo1Trainer
 import torch
 import sys
-import os
 
 # Ensure imports work when running this file from within the "PIRL" directory.
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -26,40 +25,6 @@ if repo_root not in sys.path:
 from invertedpendulum import InvertedPendulumEnv  # noqa: E402
 from training.rewards import make_reward_quadratic #noqa: E402
 from training.disturbances import DISTURB_FNS  # noqa: E402
-
-def plot_value_function(agent, env):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    # Value function is the critic
-    critic = agent.critic
-    device = next(critic.parameters()).device
-
-    # Value function is defined on (cos(theta), sin(theta), thetadot)
-    # We'll sweep theta in [-pi, pi], thetadot in env.observation_space.high[-1]
-    n_theta = 100
-    n_thetadot = 100
-    theta_range = np.linspace(-np.pi, np.pi, n_theta)
-    thetadot_range = np.linspace(-4, 4, n_thetadot)
-
-    Theta, Thetadot = np.meshgrid(theta_range, thetadot_range)
-
-    state_grid = np.stack([Theta, Thetadot], axis=-1)
-    state_grid_flat = state_grid.reshape(-1, 2)
-
-    # Evaluate value function
-    with torch.no_grad():
-        state_tensor = torch.tensor(state_grid_flat, dtype=torch.float32, device=device)
-        values = critic(state_tensor).cpu().numpy().reshape(n_thetadot, n_theta)
-
-    # Plot
-    fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(Theta, Thetadot, values, cmap='viridis')
-    ax.set_xlabel('theta (rad)')
-    ax.set_ylabel('thetadot (rad/s)')
-    ax.set_zlabel('Value')
-    ax.set_title('Value Function Surface')
-    plt.show()
 
 def simulate_env_with_actor(agent, env: gym.Env, max_steps=200):
     """
@@ -202,7 +167,7 @@ def main():
 
     else:
         # NOTE: Algo 1 requires an explicit dynamic model
-        agent = PIRL.Algo1(env, config, env._dynamics_torch)
+        agent = PIRL.Algo1(env, config, env._dynamics_torch_continuous)
 
     print("agent instantiated")
 
@@ -217,7 +182,6 @@ def main():
         trainer = Algo1Trainer(agent)
         actor_losses, critic_losses = trainer.run()
 
-    plot_value_function(agent, env)
     # simulate_env_with_actor(agent, env)
 
 

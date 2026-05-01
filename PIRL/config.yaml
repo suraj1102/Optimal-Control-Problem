@@ -14,7 +14,7 @@ cost_matrices:
 
 model_size:
   actor: [10, 10]
-  critic: [10, 10]
+  critic: [10]
 
 hyperparameters:
   batch_size: 100

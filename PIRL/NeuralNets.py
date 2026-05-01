@@ -81,10 +81,15 @@ class Actor(nn.Module):
     def forward(self, state):
         if self.normalize_states:
             state = self.normalizer.normalize_state(state)
+
         action = self.net(state)
-        # Output in [-1, 1], scale to env action bounds
-        scaled_action = self.normalizer.denormalize_action(action)
-        return scaled_action
+
+        if self.normalize_states:
+            # Output in [-1, 1], scale to env action bounds
+            scaled_action = self.normalizer.denormalize_action(action)
+            return scaled_action
+        
+        return action
 
 
 class Critic(nn.Module):

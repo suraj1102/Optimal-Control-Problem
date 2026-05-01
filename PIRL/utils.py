@@ -17,8 +17,8 @@ def sample_states(env: gym.Env, n_samples: int):
     low = np.asarray(low, dtype=np.float32).copy()
     high = np.asarray(high, dtype=np.float32).copy()
     if not np.all(np.isfinite(low)) or not np.all(np.isfinite(high)):
-        low = np.array([-np.pi, -8.0], dtype=np.float32)
-        high = np.array([np.pi, 8.0], dtype=np.float32)
+        low = np.array([-np.pi, -4.0], dtype=np.float32)
+        high = np.array([np.pi, 4.0], dtype=np.float32)
 
     samples = low + raw_samples * (high - low)
     return torch.tensor(samples, dtype=torch.float32)

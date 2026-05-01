@@ -82,6 +82,20 @@ class InvertedPendulumEnv(BaseEnv):
         # Stack along dim=1 to get shape [batch, 2]
         return torch.stack([new_theta, new_theta_dot], dim=1)
 
+    def _dynamics_torch_continuous(self, state, action):
+        """Used to solve continuous time ricatti equation for lqr initialization"""
+        theta = state[:, 0]
+        theta_dot = state[:, 1]
+        u = action[:, 0]
+
+        theta_ddot = (
+            self.gravity / self.length * torch.sin(theta)
+            - (self.damping_factor / self.mass) * theta_dot
+            + u / (self.mass * self.length**2)
+        )
+
+        return torch.stack([theta_dot, theta_ddot], dim=1)
+
     def _reward(self, state: np.ndarray, action: np.ndarray) -> float:
         return self.reward_fn(state, action)
 
