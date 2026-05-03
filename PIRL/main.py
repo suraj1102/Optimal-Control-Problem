@@ -1,10 +1,9 @@
 import yaml
 import gymnasium as gym
 import PIRL
-import utils
 import os
 import numpy as np
-from train import trainAlgo2, Algo1Trainer
+from train import Algo1Trainer
 import torch
 import sys
 
@@ -23,81 +22,116 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from invertedpendulum import InvertedPendulumEnv  # noqa: E402
-from training.rewards import make_reward_quadratic #noqa: E402
+from training.rewards import make_reward_quadratic  # noqa: E402
 from training.disturbances import DISTURB_FNS  # noqa: E402
 
-def simulate_env_with_actor(agent, env: gym.Env, max_steps=200):
-    """
-    Simulate the environment using the agent's actor policy, rendering with 'human' mode.
-    Returns trajectory (list of (state, action, reward)) and total reward.
-    """
+
+def simulate(agent: PIRL.PIRL, t: float = 10):
+    env = agent.env
+    device = next(agent.actor.parameters()).device
+    agent.actor.eval()
+
+    x0 = torch.tensor([[0.1, 0.0]], device=device)
+    dt = env.dt
+    numPoints = int(t / dt)
+
+    x_list = []
+    x_list.append(x0)
+
+    for _ in range(numPoints):
+        # Get action from actor
+        with torch.no_grad():
+            ut = agent.actor(x0)
+        ut_np = ut.detach().cpu().numpy().flatten()
+        # Euler integration for continuous dynamics: x_{t+1} = x_t + F(x_t, u_t) * dt
+        with torch.no_grad():
+            delta = (
+                agent.F(
+                    x0,
+                    torch.tensor(
+                        ut_np.reshape(1, -1), device=device, dtype=torch.float32
+                    ),
+                )
+                * dt
+            )
+        x1 = x0 + delta
+        # Wrap theta to [-pi, pi]
+        x1_np = x1.detach().cpu().numpy()
+        x1_np[0, 0] = (x1_np[0, 0] + np.pi) % (2 * np.pi) - np.pi
+        x0 = torch.tensor(x1_np, device=device, dtype=torch.float32)
+        x_list.append(x0)
+
+    # Convert to numpy for plotting
+    x_arr = torch.stack(x_list).cpu().numpy()[:, 0, :]
+    t_arr = np.arange(x_arr.shape[0]) * dt
+
+    return x_arr, t_arr
+
+
+def phase_plot(agent: PIRL.PIRL):
     import matplotlib.pyplot as plt
 
-    plt.ion()
-    state, _ = env.reset()
-    try:
-        env.unwrapped.state = np.array([0.0, 0.0])  # [theta, thetadot] 
-        if hasattr(env.unwrapped, 'state') and len(env.unwrapped.state) == 2:
-            state = np.array([0.0, 1.0, 0.0])
-    except Exception:
-        pass
-    traj = []
-    total_reward = 0.0
-    device = next(agent.actor.parameters()).device
+    radii_deg = [30, 50, 90, 120, 150, 180]  # List of radii in degrees
+    num_traj = 6
+    t = 10
+    trajs = []
+    for radius_deg in radii_deg:
+        radius = np.deg2rad(radius_deg)
+        for i in range(num_traj):
+            angle = 2 * np.pi * i / num_traj
+            theta0 = radius * np.cos(angle)
+            theta_dot0 = radius * np.sin(angle)
+            agent.actor.eval()
+            x0 = torch.tensor(
+                [[theta0, theta_dot0]],
+                dtype=torch.float32,
+                device=next(agent.actor.parameters()).device,
+            )
+            # Use simulate with custom x0
+            env = agent.env
+            dt = env.dt
+            numPoints = int(t / dt)
+            x_list = [x0]
+            x = x0
+            for _ in range(numPoints):
+                with torch.no_grad():
+                    ut = agent.actor(x)
+                ut_np = ut.detach().cpu().numpy().flatten()
+                with torch.no_grad():
+                    delta = (
+                        agent.F(
+                            x,
+                            torch.tensor(
+                                ut_np.reshape(1, -1),
+                                device=x.device,
+                                dtype=torch.float32,
+                            ),
+                        )
+                        * dt
+                    )
+                x1 = x + delta
+                x1_np = x1.detach().cpu().numpy()
+                x1_np[0, 0] = (x1_np[0, 0] + np.pi) % (2 * np.pi) - np.pi
+                x = torch.tensor(x1_np, device=x.device, dtype=torch.float32)
+                x_list.append(x)
+            x_arr = torch.stack(x_list).cpu().numpy()[:, 0, :]
+            trajs.append(x_arr)
 
-    thetas, thetadots, actions = [], [], []
-    fig, axs = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
-    ylabels = ["theta (rad)", "thetadot (rad/s)", "u (action)"]
-    colors = ["b", "g", "r"]
-    for ax, ylabel in zip(axs, ylabels):
-        ax.set_ylabel(ylabel)
-    axs[2].set_xlabel("Step")
-    fig.suptitle("Inverted Pendulum Telemetry")
-
-    def extract_theta_thetadot(state):
-        if len(state) == 3:
-            cos_th, sin_th, thetadot = state
-            theta = np.arctan2(sin_th, cos_th)
-        elif len(state) == 2:
-            theta, thetadot = state
-        else:
-            theta, thetadot = None, None
-        return theta, thetadot
-
-    for t in range(max_steps):
-        # Get action from actor
-        state_tensor = torch.tensor(state, dtype=torch.float32, device=device)
-        with torch.no_grad():
-            action = agent.actor(state_tensor).cpu().numpy()
-        if action.ndim > 1:
-            action = action.squeeze()
-
-        theta, thetadot = extract_theta_thetadot(state)
-        thetas.append(theta)
-        thetadots.append(thetadot)
-        actions.append(action if np.isscalar(action) else action[0])
-
-        # Live plot update (clear only data, not labels)
-        for i, (ax, data, color) in enumerate(
-            zip(axs, [thetas, thetadots, actions], colors)
-        ):
-            ax.clear()
-            ax.plot(data, color=color)
-            ax.set_ylabel(ylabels[i])
-        axs[2].set_xlabel("Step")
-        fig.suptitle("Inverted Pendulum Telemetry")
-        plt.pause(0.001)
-
-        # Step environment
-        state, reward, terminated, truncated, info = env.step(action)
-        traj.append((state, action, reward))
-        total_reward += reward
-        env.render()
-        if terminated or truncated:
-            break
-    plt.ioff()
+    # Plot all trajectories on phase plot
+    plt.figure(figsize=(7, 5))
+    for arr in trajs:
+        plt.plot(arr[:, 0], arr[:, 1], lw=2)
+        plt.scatter(arr[0, 0], arr[0, 1], color="b", marker="o")  # Start point
+        plt.scatter(
+            arr[-1, 0], arr[-1, 1], color="k", marker="o", s=15, zorder=5
+        )  # End point (smaller dot)
+    plt.xlabel("theta (rad)")
+    plt.ylabel("theta_dot (rad/s)")
+    plt.title("Phase plot of multiple rollouts")
+    plt.xlim(-np.pi, np.pi)
+    plt.grid()
+    plt.tight_layout()
     plt.show()
-    return traj, total_reward
 
 
 def main():
@@ -132,57 +166,44 @@ def main():
     print("Config Loaded")
 
     # Setup env
-    if config["env_name"] == "Pendulum-v1":
-        env = gym.make(config["env_name"], render_mode="human")
-    elif config["env_name"] == "myPendulum":
-        Q = config["cost_matrices"]["Q"]
-        R = config["cost_matrices"]["R"]
-        reward_fn = make_reward_quadratic(Q[0], Q[1], R[0], normalise=True)
-        env = InvertedPendulumEnv(
-            reward_fn=reward_fn,
-            disturb_fn=DISTURB_FNS["none"],
-            dt = 0.05,
-            max_steps=200,
-            seed=seed,
-            gravity=config["system_params"]["g"],
-            length=config["system_params"]["l"],
-            mass=config["system_params"]["m"]
-        )
-    manager = utils.Manager(env, config)
+    Q = config["cost_matrices"]["Q"]
+    R = config["cost_matrices"]["R"]
+    reward_fn = make_reward_quadratic(Q[0], Q[1], R[0], normalise=True)
+    env = InvertedPendulumEnv(
+        reward_fn=reward_fn,
+        disturb_fn=DISTURB_FNS["none"],
+        dt=0.02,
+        max_steps=200,
+        seed=seed,
+        gravity=config["system_params"]["g"],
+        length=config["system_params"]["l"],
+        mass=config["system_params"]["m"],
+        damping_factor=config["system_params"]["b"],
+        theta_dot_limit=(-4, 4),
+    )
 
     print("ENV created")
 
-    # Instantiate Agent based on Algorithm selection
+    # Select Agend Based On Algorithm
     if config["algorithm"] == "Algo2":
-        agent = PIRL.Algo2(config, env)
-
-        # NOTE: Algo 2 Phase 1: Admissible Policy Initialization
-        print("Starting Phase 1: Admissible Policy Search...")
-        for i in range(config["init_epochs"]):
-            states = manager.get_sobol_samples(config["batch_size"])
-            batch = manager.collect_integral_batch(agent, states)
-            loss = agent.initialize_policy(batch, P_matrix=np.eye(agent.state_dim))
-            if i % 10 == 0:
-                print(f"Init Epoch {i} | Loss: {loss:.4f}")
-
+        raise NotImplementedError()
     else:
-        # NOTE: Algo 1 requires an explicit dynamic model
+        # Algo 1 requires an explicit dynamic model
         agent = PIRL.Algo1(env, config, env._dynamics_torch_continuous)
 
     print("agent instantiated")
 
-    # NOTE: Phase 2 & 3: Iterative Policy Iteration
     print(f"Starting {config['algorithm']} Main Training...")
     actor_losses, critic_losses = [], []
 
-    # TODO: Model training
     if config["algorithm"] == "Algo2":
-        actor_losses, critic_losses = trainAlgo2(agent)
+        raise NotImplementedError()
     else:
         trainer = Algo1Trainer(agent)
         actor_losses, critic_losses = trainer.run()
 
-    # simulate_env_with_actor(agent, env)
+    # simulate(agent)
+    phase_plot(agent)
 
 
 if __name__ == "__main__":

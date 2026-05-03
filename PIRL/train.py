@@ -97,7 +97,7 @@ class Algo1Trainer:
             if torch.mps.is_available()
             else "cpu"
         )
-        self.kmax = int(self.config.get("kmax", 5))
+        self.kmax = int(self.config.get("kmax", 10))
         self.epsilon_v = float(self.config.get("epsilon_v", 1e-2))
         self.epsilon_u = float(self.config.get("epsilon_u", 1e-2))
         self.Nepochs = int(self.config.get("Nepochs", 10_000))
@@ -210,7 +210,6 @@ class Algo1Trainer:
 
         self.L_v = torch.tensor(float("inf"), device=self.device)
         # while self.L_v.item() > self.epsilon_v:
-        self.criticNN.apply(init_weights)
         for epoch_iter in range(self.Nepochs):
             states = sample_states(self.env, self.batch_size).to(self.device)
             states.requires_grad_(True)
@@ -234,17 +233,24 @@ class Algo1Trainer:
             xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
             uRu = torch.einsum("bi,ij,bj->b", actions, self.R, actions)
             lv_terms = xQx + uRu + (grad_V * Fxu).sum(dim=1)
+            # lv_terms = lv_terms / (1 + states.norm(dim=1))
             self.L_v = (lv_terms**2).mean()            
             
             
             # Boundary Loss
-            # state_dim = self.env.observation_space.shape[0]
-            # x0 = torch.zeros(state_dim, device=self.device, requires_grad=True)
-            # v0_bc = torch.zeros(1, device=self.device, requires_grad=True)
-            # v0_nn = self.criticNN(x0)
-            # L_v_bc = (v0_nn-v0_bc)**2
-            
-            # self.L_v = self.L_v + 10 * L_v_bc.squeeze()
+            state_dim = self.env.observation_space.shape[0]
+            x0 = torch.zeros(state_dim, device=self.device, requires_grad=True)
+            v0_bc = torch.zeros(1, device=self.device, requires_grad=True)
+            v0_nn = self.criticNN(x0)
+            L_v_bc = (v0_nn-v0_bc)**2
+            self.L_v = self.L_v + 10 * L_v_bc.squeeze()
+
+
+            # No neg values soft constraint
+            V = self.criticNN(states).squeeze()
+            L_pos = torch.relu(-V).mean()
+            self.L_v = self.L_v + 100 * L_pos
+
 
             self.opt_critic.zero_grad()
             self.L_v.backward()
@@ -262,7 +268,6 @@ class Algo1Trainer:
             p.requires_grad = False
 
         L_u = torch.tensor(float("inf"), device=self.device)
-        self.actorNN.apply(init_weights)
 
         for epoch_iter in range(self.Nepochs):
             states = sample_states(self.env, self.batch_size).to(self.device)
@@ -277,8 +282,8 @@ class Algo1Trainer:
             xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
             uRu = torch.einsum("bi,ij,bj->b", actions, self.R, actions)
             
-            lu_terms = xQx + uRu + (grad_V * Fxu).sum(dim=1)
-            L_u = lu_terms.mean()
+            lu_terms = uRu + (grad_V * Fxu).sum(dim=1)
+            L_u = lu_terms.mean() + 1e-3 * torch.norm(actions, p=2)
             
             # backprop
             self.opt_actor.zero_grad()
@@ -302,15 +307,15 @@ class Algo1Trainer:
 
     def run(self):
         self.initalize_actor_lqr()
-        plot_action_function(self.actorNN)
+        # plot_action_function(self.actorNN)
 
         while self.k < self.kmax:
             
             self.policy_evaluation()
-            plot_value_function(self.criticNN)
+            # plot_value_function(self.criticNN)
 
             self.policy_improvement()
-            plot_action_function(self.actorNN)
+            # plot_action_function(self.actorNN)
 
             self.k += 1
             print(

@@ -35,8 +35,19 @@ class InvertedPendulumEnv(BaseEnv):
         self.success_termination = success_termination
         self.failure_termination = failure_termination
 
+        states_low = [-np.pi, theta_dot_limit(0)]
+        states_high = [np.pi, theta_dot_limit(1)]
+
         super().__init__(
-            dt, max_steps, action_low, action_high, state_dim, action_dim, seed
+            dt,
+            max_steps,
+            action_low,
+            action_high,
+            states_low,
+            states_high,
+            state_dim,
+            action_dim,
+            seed,
         )
 
     def _initial_state(self) -> np.ndarray:
@@ -62,7 +73,9 @@ class InvertedPendulumEnv(BaseEnv):
         new_theta = (new_theta + np.pi) % (2 * np.pi) - np.pi  # wrap to -pi to pi
         return np.array([new_theta, new_theta_dot], dtype=np.float32)
 
-    def _dynamics_torch(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+    def _dynamics_torch(
+        self, state: torch.Tensor, action: torch.Tensor
+    ) -> torch.Tensor:
         theta = state[:, 0]
         theta_dot = state[:, 1]
         u = action[:, 0]  # shape: [batch]
@@ -77,7 +90,9 @@ class InvertedPendulumEnv(BaseEnv):
         new_theta_dot = theta_dot + self.dt * theta_ddot
         new_theta = theta + self.dt * new_theta_dot
 
-        new_theta = (new_theta + torch.pi) % (2 * torch.pi) - torch.pi  # wrap to -pi to pi
+        new_theta = (new_theta + torch.pi) % (
+            2 * torch.pi
+        ) - torch.pi  # wrap to -pi to pi
 
         # Stack along dim=1 to get shape [batch, 2]
         return torch.stack([new_theta, new_theta_dot], dim=1)

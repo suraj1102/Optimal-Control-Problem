@@ -2,9 +2,6 @@
 import torch
 import torch.nn as nn
 
-#FIXME: state normalization - same fix as in utils sampler function
-
-
 def get_env_dims(env):
     state_dim = env.observation_space.shape[0]
     if hasattr(env.action_space, "shape"):
@@ -34,61 +31,18 @@ def build_sequential(input_dim, layer_sizes, output_dim=None, activation=nn.Tanh
     return nn.Sequential(*layers)
 
 
-class StateActionNormalizer:
-    def __init__(self, state_low, state_high, action_low, action_high):
-        self.state_low = torch.tensor(state_low, dtype=torch.float32)
-        self.state_high = torch.tensor(state_high, dtype=torch.float32)
-        self.action_low = torch.tensor(action_low, dtype=torch.float32)
-        self.action_high = torch.tensor(action_high, dtype=torch.float32)
-
-    def normalize_state(self, state):
-        state_low = self.state_low.to(state.device)
-        state_high = self.state_high.to(state.device)
-        return 2 * (state - state_low) / (state_high - state_low) - 1
-
-    def denormalize_state(self, norm_state):
-        state_low = self.state_low.to(norm_state.device)
-        state_high = self.state_high.to(norm_state.device)
-        return (norm_state + 1) * (state_high - state_low) / 2 + state_low
-
-    def normalize_action(self, action):
-        action_low = self.action_low.to(action.device)
-        action_high = self.action_high.to(action.device)
-        return 2 * (action - action_low) / (action_high - action_low) - 1
-
-    def denormalize_action(self, norm_action):
-        action_low = self.action_low.to(norm_action.device)
-        action_high = self.action_high.to(norm_action.device)
-        return (norm_action + 1) * (action_high - action_low) / 2 + action_low
-
-
 class Actor(nn.Module):
     def __init__(self, env, config):
         super().__init__()
         state_dim, action_dim = get_env_dims(env)
-        state_low, state_high, action_low, action_high = get_env_bounds(env)
-        self.normalizer = StateActionNormalizer(
-            state_low, state_high, action_low, action_high
-        )
+        
         actor_layers = config["model_size"]["actor"]
         self.net = build_sequential(
             state_dim, actor_layers, action_dim, activation=nn.Tanh
         )
-        self.action_low = torch.tensor(action_low, dtype=torch.float32)
-        self.action_high = torch.tensor(action_high, dtype=torch.float32)
-        self.normalize_states = config.get("system_params", {}).get("normalize_states", False)
 
     def forward(self, state):
-        if self.normalize_states:
-            state = self.normalizer.normalize_state(state)
-
         action = self.net(state)
-
-        if self.normalize_states:
-            # Output in [-1, 1], scale to env action bounds
-            scaled_action = self.normalizer.denormalize_action(action)
-            return scaled_action
-        
         return action
 
 
@@ -100,32 +54,22 @@ class Critic(nn.Module):
         self.net = build_sequential(state_dim, critic_layers, 1, activation=nn.Tanh)
 
     def forward(self, state):
-        return self.net(state)
+        value = self.net(state)
+        return value
 
 
-# FIXME: Use same network as the actor/critic [check in paper] 
 class AdmissibleNet(nn.Module):
     def __init__(self, env, config):
         super().__init__()
         state_dim, action_dim = get_env_dims(env)
-        state_low, state_high, action_low, action_high = get_env_bounds(env)
-        self.normalizer = StateActionNormalizer(
-            state_low, state_high, action_low, action_high
-        )
-        hidden_dim = config["hyperparameters"]["hidden_dim"]
+        hidden_dim = config["model_size"]["actor"]
         self.net = build_sequential(
             state_dim, [hidden_dim, hidden_dim], action_dim, activation=nn.Tanh
         )
-        self.action_low = torch.tensor(action_low, dtype=torch.float32)
-        self.action_high = torch.tensor(action_high, dtype=torch.float32)
-        self.normalize_states = config.get("system_params", {}).get("normalize_states", False)
 
     def forward(self, state):
-        if self.normalize_states:
-            state = self.normalizer.normalize_state(state)
-        action = self.net(state)
-        scaled_action = self.normalizer.denormalize_action(action)
-        return scaled_action
+       action = self.net(state)
+       return action
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ class BaseEnv(gym.Env):
         max_steps: int = 500,
         action_low: float = -1.0,
         action_high: float = 1.0,
+        states_low: list[float] = [-np.pi, -8],
+        states_high: list[float] = [np.pi, 8],
         state_dim: int = 2,
         action_dim: int = 1,
         seed: Optional[int] = None,
@@ -31,7 +33,9 @@ class BaseEnv(gym.Env):
         )
 
         self.observation_space = gym.spaces.Box(
-            low=-np.inf, high=np.inf, shape=(state_dim,), dtype=np.float32
+            low=np.array(states_low, dtype=np.float32),
+            high=np.array(states_high, dtype=np.float32),
+            shape=(state_dim,), dtype=np.float32
         )
 
         self.state: np.ndarray

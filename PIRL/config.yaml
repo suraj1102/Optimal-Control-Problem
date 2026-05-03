@@ -6,11 +6,12 @@ system_params:
   g: 10
   l: 0.8
   m: 0.1
+  b: 0.2
   normalize_states: false
 
 cost_matrices:
   Q: [1.0, 0.1] # For [th, th_dot]
-  R: [0.01]
+  R: [0.5]
 
 model_size:
   actor: [10, 10]
@@ -19,7 +20,7 @@ model_size:
 hyperparameters:
   batch_size: 100
   hidden_dim: 64
-  lr_actor: 0.0003
+  lr_actor: 0.0001
   lr_critic: 0.001
   alpha_v: 1.0
   beta_v: 50.0  # High weight for Lyapunov stability penalty
