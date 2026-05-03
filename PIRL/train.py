@@ -5,6 +5,7 @@ from PIRL import Algo1, Algo2
 from NeuralNets import RunningNormalizer
 import os
 import datetime
+import pandas as pd
 
 def init_weights(m):
     """
@@ -109,7 +110,7 @@ class Algo1Trainer:
             if torch.mps.is_available()
             else "cpu"
         )
-        self.kmax = int(self.config.get("kmax", 20))
+        self.kmax = int(self.config.get("kmax", 6))
         self.epsilon_v = float(self.config.get("epsilon_v", 1e-2))
         self.epsilon_u = float(self.config.get("epsilon_u", 1e-2))
         self.Nepochs = int(self.config.get("Nepochs", 20_000))
@@ -360,7 +361,68 @@ class Algo1Trainer:
         self.policy_evaluation()
         plot_value_function(self.criticNN, info=f"k={self.k}")
 
+        results = self.evaluatePolicyRollouts()
+        self.saveRolloutResults(results, filepath="rollouts_dist.csv")
+
         return self.actor_losses, self.critic_losses
+    
+
+    def run_rollout(self, max_steps=200):
+        state, _ = self.env.reset()
+        state = torch.tensor(state, dtype=torch.float32, device=self.device)
+
+        cum_reward = 0.0
+
+        for t in range(max_steps):
+            with torch.no_grad():
+                action = self.actorNN(state.unsqueeze(0)).squeeze(0)
+
+            next_state, _, done, truncated, _ = self.env.step(action.cpu().numpy())
+
+            x = state
+            u = action
+
+            xQx = x @ self.Q @ x
+            uRu = u @ self.R @ u
+
+            reward = -(xQx + uRu).item()
+            cum_reward += reward
+
+            state = torch.tensor(next_state, dtype=torch.float32, device=self.device)
+
+            if done or truncated:
+                break
+
+        return cum_reward
+    
+
+    def evaluatePolicyRollouts(self, n_rollouts=100, max_steps=200):
+        results = []
+
+        for rollout_id in range(n_rollouts):
+            cum_reward = self.run_rollout(max_steps=max_steps)
+
+            results.append({
+                "k": self.k,
+                "rollout": rollout_id,
+                "cum_reward": cum_reward
+            })
+
+        return results
+
+
+    def saveRolloutResults(self, results, filepath="rollouts2.csv"):
+        df = pd.DataFrame(results)
+
+        try:
+            df_existing = pd.read_csv(filepath)
+            df = pd.concat([df_existing, df], ignore_index=True)
+        except FileNotFoundError:
+            pass
+
+        df.to_csv(filepath, index=False)
+
+
 
 
 def trainAlgo2(agent: Algo2):

@@ -47,3 +47,4 @@ venv.bak/
 *.png
 *.pt
 
+*.csv

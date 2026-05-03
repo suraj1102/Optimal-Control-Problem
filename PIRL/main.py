@@ -154,7 +154,7 @@ def main():
     reward_fn = make_reward_quadratic(Q[0], Q[1], R[0], normalise=True)
     env = InvertedPendulumEnv(
         reward_fn=reward_fn,
-        disturb_fn=DISTURB_FNS["none"],
+        disturb_fn=DISTURB_FNS["gaussian"],
         dt=0.02,
         max_steps=200,
         seed=seed,
