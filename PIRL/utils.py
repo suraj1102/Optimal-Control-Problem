@@ -1,5 +1,4 @@
 from scipy.stats import qmc
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import gymnasium as gym

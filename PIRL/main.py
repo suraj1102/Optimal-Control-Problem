@@ -26,55 +26,26 @@ from training.rewards import make_reward_quadratic  # noqa: E402
 from training.disturbances import DISTURB_FNS  # noqa: E402
 
 
-def simulate(agent: PIRL.PIRL, t: float = 10):
-    env = agent.env
-    device = next(agent.actor.parameters()).device
-    agent.actor.eval()
-
-    x0 = torch.tensor([[0.1, 0.0]], device=device)
-    dt = env.dt
-    numPoints = int(t / dt)
-
-    x_list = []
-    x_list.append(x0)
-
-    for _ in range(numPoints):
-        # Get action from actor
-        with torch.no_grad():
-            ut = agent.actor(x0)
-        ut_np = ut.detach().cpu().numpy().flatten()
-        # Euler integration for continuous dynamics: x_{t+1} = x_t + F(x_t, u_t) * dt
-        with torch.no_grad():
-            delta = (
-                agent.F(
-                    x0,
-                    torch.tensor(
-                        ut_np.reshape(1, -1), device=device, dtype=torch.float32
-                    ),
-                )
-                * dt
-            )
-        x1 = x0 + delta
-        # Wrap theta to [-pi, pi]
-        x1_np = x1.detach().cpu().numpy()
-        x1_np[0, 0] = (x1_np[0, 0] + np.pi) % (2 * np.pi) - np.pi
-        x0 = torch.tensor(x1_np, device=device, dtype=torch.float32)
-        x_list.append(x0)
-
-    # Convert to numpy for plotting
-    x_arr = torch.stack(x_list).cpu().numpy()[:, 0, :]
-    t_arr = np.arange(x_arr.shape[0]) * dt
-
-    return x_arr, t_arr
-
-
-def phase_plot(agent: PIRL.PIRL):
+def phase_plot(agent: PIRL.PIRL, trainer):
     import matplotlib.pyplot as plt
 
-    radii_deg = [30, 50, 90, 120, 150, 180]  # List of radii in degrees
+    radii_deg = [30, 50, 90, 120, 150, 175]  # List of radii in degrees
     num_traj = 6
     t = 10
     trajs = []
+    # Plot value function background
+    critic = agent.critic
+    device = next(agent.actor.parameters()).device
+
+    # Create a grid over theta and theta_dot
+    n_grid = 200
+    theta_vals = np.linspace(-np.pi, np.pi, n_grid)
+    theta_dot_vals = np.linspace(-4, 4, n_grid)
+    Theta, Theta_dot = np.meshgrid(theta_vals, theta_dot_vals)
+    grid_points = np.stack([Theta.ravel(), Theta_dot.ravel()], axis=1)
+    grid_tensor = torch.tensor(grid_points, dtype=torch.float32, device=device)
+    with torch.no_grad():
+        V = critic(grid_tensor).cpu().numpy().reshape(n_grid, n_grid)
     for radius_deg in radii_deg:
         radius = np.deg2rad(radius_deg)
         for i in range(num_traj):
@@ -87,7 +58,7 @@ def phase_plot(agent: PIRL.PIRL):
                 dtype=torch.float32,
                 device=next(agent.actor.parameters()).device,
             )
-            # Use simulate with custom x0
+            # Use simulate with custom x0 and simple Euler integration
             env = agent.env
             dt = env.dt
             numPoints = int(t / dt)
@@ -98,18 +69,15 @@ def phase_plot(agent: PIRL.PIRL):
                     ut = agent.actor(x)
                 ut_np = ut.detach().cpu().numpy().flatten()
                 with torch.no_grad():
-                    delta = (
-                        agent.F(
-                            x,
-                            torch.tensor(
-                                ut_np.reshape(1, -1),
-                                device=x.device,
-                                dtype=torch.float32,
-                            ),
-                        )
-                        * dt
+                    f_x = agent.F(
+                        x,
+                        torch.tensor(
+                            ut_np.reshape(1, -1),
+                            device=x.device,
+                            dtype=torch.float32,
+                        ),
                     )
-                x1 = x + delta
+                x1 = x + f_x * dt
                 x1_np = x1.detach().cpu().numpy()
                 x1_np[0, 0] = (x1_np[0, 0] + np.pi) % (2 * np.pi) - np.pi
                 x = torch.tensor(x1_np, device=x.device, dtype=torch.float32)
@@ -117,21 +85,36 @@ def phase_plot(agent: PIRL.PIRL):
             x_arr = torch.stack(x_list).cpu().numpy()[:, 0, :]
             trajs.append(x_arr)
 
-    # Plot all trajectories on phase plot
+    # Plot all trajectories on phase plot with value function background
     plt.figure(figsize=(7, 5))
+    plt.contourf(
+        Theta,
+        Theta_dot,
+        V,
+        levels=100,
+        cmap="viridis",
+        alpha=0.7,
+    )
+    plt.colorbar(label="Value Function V(s)")
     for arr in trajs:
-        plt.plot(arr[:, 0], arr[:, 1], lw=2)
+        plt.plot(arr[:, 0], arr[:, 1], lw=2, color="r")
         plt.scatter(arr[0, 0], arr[0, 1], color="b", marker="o")  # Start point
         plt.scatter(
             arr[-1, 0], arr[-1, 1], color="k", marker="o", s=15, zorder=5
         )  # End point (smaller dot)
     plt.xlabel("theta (rad)")
     plt.ylabel("theta_dot (rad/s)")
-    plt.title("Phase plot of multiple rollouts")
+    plt.title("Phase plot of multiple rollouts with Value Function background")
     plt.xlim(-np.pi, np.pi)
+    plt.ylim(-4, 4)
     plt.grid()
     plt.tight_layout()
+
+    plt.savefig("phase_plot_output.png")
+
     plt.show()
+    
+    
 
 
 def main():
@@ -180,6 +163,8 @@ def main():
         mass=config["system_params"]["m"],
         damping_factor=config["system_params"]["b"],
         theta_dot_limit=(-4, 4),
+        action_high=config["system_params"]["umax"],
+        action_low=-config["system_params"]["umax"],
     )
 
     print("ENV created")
@@ -203,7 +188,7 @@ def main():
         actor_losses, critic_losses = trainer.run()
 
     # simulate(agent)
-    phase_plot(agent)
+    phase_plot(agent, trainer)
 
 
 if __name__ == "__main__":

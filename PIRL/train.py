@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 from utils import sample_states
 from PIRL import Algo1, Algo2
-
+from NeuralNets import RunningNormalizer
+import os
+import datetime
 
 def init_weights(m):
     """
@@ -14,7 +16,12 @@ def init_weights(m):
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
 
-def plot_value_function(critic: nn.Module):
+OUTPUT_DIR = os.path.join(os.getcwd(), 'outputs')
+PLOTS_DIR = os.path.join(OUTPUT_DIR, 'plots')
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+
+def plot_value_function(critic: nn.Module, info: str):
     import matplotlib.pyplot as plt
     import numpy as np
     
@@ -44,10 +51,13 @@ def plot_value_function(critic: nn.Module):
     ax.set_ylabel('thetadot (rad/s)')
     ax.set_zlabel('Value')
     ax.set_title('Value Function Surface')
-    plt.show()
+
+    plt.savefig(f"{PLOTS_DIR}/{datetime.datetime.now()}-VALUE-{info}.png")
+
+    plt.close()
 
 
-def plot_action_function(actor: nn.Module):
+def plot_action_function(actor: nn.Module, info: str):
     import matplotlib.pyplot as plt
     import numpy as np
     
@@ -77,7 +87,9 @@ def plot_action_function(actor: nn.Module):
     ax.set_ylabel('thetadot (rad/s)')
     ax.set_zlabel('u')
     ax.set_title('Action Function Surface')
-    plt.show()
+
+    plt.savefig(f"{PLOTS_DIR}/{datetime.datetime.now()}-ACTION-{info}.png")
+    plt.close()
 
 
 class Algo1Trainer:
@@ -97,11 +109,11 @@ class Algo1Trainer:
             if torch.mps.is_available()
             else "cpu"
         )
-        self.kmax = int(self.config.get("kmax", 10))
+        self.kmax = int(self.config.get("kmax", 20))
         self.epsilon_v = float(self.config.get("epsilon_v", 1e-2))
         self.epsilon_u = float(self.config.get("epsilon_u", 1e-2))
-        self.Nepochs = int(self.config.get("Nepochs", 10_000))
-        self.batch_size = int(self.config.get("batch_size", 2**12))
+        self.Nepochs = int(self.config.get("Nepochs", 20_000))
+        self.batch_size = int(self.config.get("batch_size", 2**14))
         self.print_every = int(self.config.get("print_every", 200))
         self.opt_actor = agent.opt_actor
         self.opt_critic = agent.opt_critic
@@ -115,6 +127,12 @@ class Algo1Trainer:
         self.criticNN.to(self.device)
         self.Q = agent.Q.to(self.device)
         self.R = agent.R.to(self.device)
+
+        # Normalization Stuffs
+        state_dim = self.env.observation_space.shape[0]
+        self.state_normalizer = RunningNormalizer(state_dim).to(self.device)
+        self.u_max = float(self.env.action_space.high[0])
+
 
     def initalize_actor_lqr(self):
         """
@@ -204,6 +222,11 @@ class Algo1Trainer:
                 last_layer.bias.copy_(torch.from_numpy(b).to(last_layer.bias.device, dtype=last_layer.bias.dtype))
             print("[LQR INIT] Last layer weights set using pseudoinverse.")
 
+    def warmup_normalizer(self, n_batches=50):
+        for _ in range(n_batches):
+            states = sample_states(self.env, self.batch_size).to(self.device)
+            self.state_normalizer.update(states.detach())
+
     def policy_evaluation(self):
         self.criticNN.train()
         self.actorNN.eval()
@@ -214,27 +237,38 @@ class Algo1Trainer:
             states = sample_states(self.env, self.batch_size).to(self.device)
             states.requires_grad_(True)
 
+            if self.config["system_params"]["normalize_states"]:
+                states_norm = self.state_normalizer(states)
+                states_norm.requires_grad_(True)
+            else:
+                states_norm = states
+
             with torch.no_grad():
-                actions = self.actorNN(states)
+                actions = self.actorNN(states_norm)
 
             Fxu = self.F(states, actions)
 
             # print(f"{states.shape=}\t{actions.shape=}\t{Fxu.shape=}")
             # print(f"{states=}\n{actions=}\n{Fxu=}")
 
-            V = self.criticNN(states).squeeze()
+            V = self.criticNN(states_norm).squeeze()
             grad_V = torch.autograd.grad(
-                V.sum(), states, create_graph=True, retain_graph=True
+                V.sum(), states_norm, create_graph=True, retain_graph=True
             )[0]
+
+            if self.config["system_params"]["normalize_states"]: 
+                grad_V_raw = grad_V / (self.state_normalizer.var.sqrt() + self.state_normalizer.eps)
+            else:
+                grad_V_raw = grad_V
 
             # print(f"{V.shape=}\t{grad_V.shape=}")
             # print(f"{V=}\n{grad_V=}")
 
             xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
             uRu = torch.einsum("bi,ij,bj->b", actions, self.R, actions)
-            lv_terms = xQx + uRu + (grad_V * Fxu).sum(dim=1)
-            # lv_terms = lv_terms / (1 + states.norm(dim=1))
-            self.L_v = (lv_terms**2).mean()            
+            lv_terms = xQx + uRu + (grad_V_raw * Fxu).sum(dim=1)
+            weights = 1.0 / (1.0 + states.detach().norm(dim=1)**2)
+            self.L_v = (weights * lv_terms**2).mean()            
             
             
             # Boundary Loss
@@ -279,7 +313,7 @@ class Algo1Trainer:
             V = self.criticNN(states).squeeze()
             grad_V = torch.autograd.grad(V.sum(), states, create_graph=True)[0]
             
-            xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
+            # xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
             uRu = torch.einsum("bi,ij,bj->b", actions, self.R, actions)
             
             lu_terms = uRu + (grad_V * Fxu).sum(dim=1)
@@ -307,20 +341,25 @@ class Algo1Trainer:
 
     def run(self):
         self.initalize_actor_lqr()
-        # plot_action_function(self.actorNN)
+        plot_action_function(self.actorNN, "LQR-Init")
 
+        self.warmup_normalizer()
         while self.k < self.kmax:
             
             self.policy_evaluation()
-            # plot_value_function(self.criticNN)
+            plot_value_function(self.criticNN, info=f"k={self.k}")
 
             self.policy_improvement()
-            # plot_action_function(self.actorNN)
+            plot_action_function(self.actorNN, info=f"k={self.k}")
 
             self.k += 1
             print(
                 f"End of iteration k={self.k}, L_v={self.L_v.item():.6f}, L_u={self.L_u_prev.item():.6f}"
             )
+        
+        self.policy_evaluation()
+        plot_value_function(self.criticNN, info=f"k={self.k}")
+
         return self.actor_losses, self.critic_losses
 
 

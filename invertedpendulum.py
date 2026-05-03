@@ -35,8 +35,8 @@ class InvertedPendulumEnv(BaseEnv):
         self.success_termination = success_termination
         self.failure_termination = failure_termination
 
-        states_low = [-np.pi, theta_dot_limit(0)]
-        states_high = [np.pi, theta_dot_limit(1)]
+        states_low = [-np.pi, theta_dot_limit[0]]
+        states_high = [np.pi, theta_dot_limit[1]]
 
         super().__init__(
             dt,

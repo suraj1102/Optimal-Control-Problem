@@ -4,10 +4,12 @@ env_name: "myPendulum"
 
 system_params:
   g: 10
-  l: 0.8
+  l: 1
   m: 0.1
   b: 0.2
   normalize_states: false
+  constraint: true
+  umax: 0.7
 
 cost_matrices:
   Q: [1.0, 0.1] # For [th, th_dot]

@@ -46,6 +46,23 @@ class Actor(nn.Module):
         return action
 
 
+class ActorConstraint(Actor):
+    def __init__(self, env, config):
+        super().__init__(env, config)
+        device = torch.device( "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.mps.is_available()
+            else "cpu"
+        )
+        self.umax = torch.tensor(env.action_space.high).to(device=device)
+    
+    def forward(self, state):
+        action = super().forward(state)
+        action = torch.tanh(action)
+        return action * self.umax
+    
+
 class Critic(nn.Module):
     def __init__(self, env, config):
         super().__init__()
@@ -70,6 +87,29 @@ class AdmissibleNet(nn.Module):
     def forward(self, state):
        action = self.net(state)
        return action
+
+
+class RunningNormalizer(nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-8):
+        super().__init__()
+        self.register_buffer("mean", torch.zeros(dim))
+        self.register_buffer("var", torch.ones(dim))
+        self.register_buffer("count", torch.tensor(0.0))
+        self.eps = eps
+
+    def update(self, x: torch.Tensor):
+        # Welford online update
+        batch_mean = x.mean(0)
+        batch_var = x.var(0, unbiased=False)
+        n = x.shape[0]
+        total = self.count + n
+        delta = batch_mean - self.mean
+        self.mean += delta * n / total
+        self.var = (self.var * self.count + batch_var * n + delta**2 * self.count * n / total) / total
+        self.count = total
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return (x - self.mean) / (self.var.sqrt() + self.eps)
 
 
 if __name__ == "__main__":

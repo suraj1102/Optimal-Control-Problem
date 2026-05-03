@@ -18,7 +18,7 @@ B = [0;
 
 % LQR weights
 Q = diag([1 0.1]);
-R = 0.01;
+R = 0.5;
 
 % LQR gain
 K = lqr(A,B,Q,R);
@@ -54,7 +54,7 @@ function dx = nonlinear_dynamics(x, K, m, l, g)
     th = wrapToPi(x(1));
     thd = x(2);
     
-    umax = 1;
+    umax = 0.7;
     u = -K * [th; thd];
     u = max(min(u, umax), -umax);
     
