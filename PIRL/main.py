@@ -26,7 +26,7 @@ from training.rewards import make_reward_quadratic  # noqa: E402
 from training.disturbances import DISTURB_FNS  # noqa: E402
 
 
-def phase_plot_pirl(agent, t=10.0, num_traj=6):
+def phase_plot(agent, t=10.0, num_traj=6):
     import numpy as np
     import torch
     import matplotlib.pyplot as plt
@@ -195,7 +195,7 @@ def main():
         actor_losses, critic_losses = trainer.run()
 
     # simulate(agent)
-    phase_plot(agent, trainer)
+    phase_plot(agent)
 
 
 if __name__ == "__main__":
