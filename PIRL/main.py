@@ -26,67 +26,73 @@ from training.rewards import make_reward_quadratic  # noqa: E402
 from training.disturbances import DISTURB_FNS  # noqa: E402
 
 
-def phase_plot(agent: PIRL.PIRL, trainer):
+def phase_plot_pirl(agent, t=10.0, num_traj=6):
+    import numpy as np
+    import torch
     import matplotlib.pyplot as plt
 
-    radii_deg = [30, 50, 90, 120, 150, 175]  # List of radii in degrees
-    num_traj = 6
-    t = 10
-    trajs = []
-    # Plot value function background
+    actor = agent.actor
     critic = agent.critic
-    device = next(agent.actor.parameters()).device
+    env = agent.env
 
-    # Create a grid over theta and theta_dot
+    device = next(actor.parameters()).device
+    actor.eval()
+    critic.eval()
+
     n_grid = 200
     theta_vals = np.linspace(-np.pi, np.pi, n_grid)
     theta_dot_vals = np.linspace(-4, 4, n_grid)
+
     Theta, Theta_dot = np.meshgrid(theta_vals, theta_dot_vals)
     grid_points = np.stack([Theta.ravel(), Theta_dot.ravel()], axis=1)
-    grid_tensor = torch.tensor(grid_points, dtype=torch.float32, device=device)
+
     with torch.no_grad():
+        grid_tensor = torch.tensor(grid_points, dtype=torch.float32, device=device)
         V = critic(grid_tensor).cpu().numpy().reshape(n_grid, n_grid)
+
+    radii_deg = [30, 50, 90, 120, 150, 175]
+    trajs = []
+
+    dt = env.dt
+    num_steps = int(t / dt)
+
     for radius_deg in radii_deg:
         radius = np.deg2rad(radius_deg)
+
         for i in range(num_traj):
             angle = 2 * np.pi * i / num_traj
+
             theta0 = radius * np.cos(angle)
             theta_dot0 = radius * np.sin(angle)
-            agent.actor.eval()
-            x0 = torch.tensor(
-                [[theta0, theta_dot0]],
-                dtype=torch.float32,
-                device=next(agent.actor.parameters()).device,
-            )
-            # Use simulate with custom x0 and simple Euler integration
-            env = agent.env
-            dt = env.dt
-            numPoints = int(t / dt)
-            x_list = [x0]
-            x = x0
-            for _ in range(numPoints):
-                with torch.no_grad():
-                    ut = agent.actor(x)
-                ut_np = ut.detach().cpu().numpy().flatten()
-                with torch.no_grad():
-                    f_x = agent.F(
-                        x,
-                        torch.tensor(
-                            ut_np.reshape(1, -1),
-                            device=x.device,
-                            dtype=torch.float32,
-                        ),
-                    )
-                x1 = x + f_x * dt
-                x1_np = x1.detach().cpu().numpy()
-                x1_np[0, 0] = (x1_np[0, 0] + np.pi) % (2 * np.pi) - np.pi
-                x = torch.tensor(x1_np, device=x.device, dtype=torch.float32)
-                x_list.append(x)
-            x_arr = torch.stack(x_list).cpu().numpy()[:, 0, :]
-            trajs.append(x_arr)
 
-    # Plot all trajectories on phase plot with value function background
+            state, _ = env.reset()
+            state = np.array([theta0, theta_dot0], dtype=np.float32)
+            env.state = state.copy()
+
+            traj = [state.copy()]
+
+            for _ in range(num_steps):
+                state_tensor = torch.tensor(
+                    state, dtype=torch.float32, device=device
+                ).unsqueeze(0)
+
+                with torch.no_grad():
+                    action = actor(state_tensor).cpu().numpy().squeeze()
+
+                next_state, _, done, truncated, _ = env.step(action)
+
+                next_state[0] = (next_state[0] + np.pi) % (2 * np.pi) - np.pi
+
+                traj.append(next_state.copy())
+                state = next_state
+
+                if done or truncated:
+                    break
+
+            trajs.append(np.array(traj))
+
     plt.figure(figsize=(7, 5))
+
     plt.contourf(
         Theta,
         Theta_dot,
@@ -96,29 +102,30 @@ def phase_plot(agent: PIRL.PIRL, trainer):
         alpha=0.7,
     )
     plt.colorbar(label="Value Function V(s)")
-    for arr in trajs:
-        plt.plot(arr[:, 0], arr[:, 1], lw=2, color="r")
-        plt.scatter(arr[0, 0], arr[0, 1], color="b", marker="o")  # Start point
-        plt.scatter(
-            arr[-1, 0], arr[-1, 1], color="k", marker="o", s=15, zorder=5
-        )  # End point (smaller dot)
+
+    for traj in trajs:
+        plt.plot(traj[:, 0], traj[:, 1], lw=2, color="r")
+        plt.scatter(traj[0, 0], traj[0, 1], color="blue", s=25)
+        plt.scatter(traj[-1, 0], traj[-1, 1], color="black", s=15)
+
     plt.xlabel("theta (rad)")
     plt.ylabel("theta_dot (rad/s)")
-    plt.title("Phase plot of multiple rollouts with Value Function background")
+    plt.title("Phase Plot with Value Function Background")
+
     plt.xlim(-np.pi, np.pi)
     plt.ylim(-4, 4)
+
     plt.grid()
     plt.tight_layout()
 
-    plt.savefig("phase_plot_output.png")
+    save_path = os.path.join("outputs", "plots", "phase_plot.png")
+    plt.savefig(save_path)
+    print(f"[saved] {save_path}")
 
     plt.show()
-    
-    
 
 
 def main():
-    # Set all seeds for reproducibility
     import random
 
     seed = 7
