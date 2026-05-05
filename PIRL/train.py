@@ -7,6 +7,7 @@ import os
 import datetime
 import pandas as pd
 
+
 def init_weights(m):
     """
     Initialize Weights for NN
@@ -17,15 +18,16 @@ def init_weights(m):
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
 
-OUTPUT_DIR = os.path.join(os.getcwd(), 'outputs')
-PLOTS_DIR = os.path.join(OUTPUT_DIR, 'plots')
+
+OUTPUT_DIR = os.path.join(os.getcwd(), "outputs")
+PLOTS_DIR = os.path.join(OUTPUT_DIR, "plots")
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
 def plot_value_function(critic: nn.Module, info: str):
     import matplotlib.pyplot as plt
     import numpy as np
-    
+
     critic.eval()
     device = next(critic.parameters()).device
 
@@ -46,12 +48,12 @@ def plot_value_function(critic: nn.Module, info: str):
 
     # Plot
     fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(Theta, Thetadot, values, cmap='viridis')
-    ax.set_xlabel('theta (rad)')
-    ax.set_ylabel('thetadot (rad/s)')
-    ax.set_zlabel('Value')
-    ax.set_title('Value Function Surface')
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot_surface(Theta, Thetadot, values, cmap="viridis")
+    ax.set_xlabel("theta (rad)")
+    ax.set_ylabel("thetadot (rad/s)")
+    ax.set_zlabel("Value")
+    ax.set_title("Value Function Surface")
 
     plt.savefig(f"{PLOTS_DIR}/{datetime.datetime.now()}-VALUE-{info}.png")
 
@@ -61,7 +63,7 @@ def plot_value_function(critic: nn.Module, info: str):
 def plot_action_function(actor: nn.Module, info: str):
     import matplotlib.pyplot as plt
     import numpy as np
-    
+
     actor.eval()
     device = next(actor.parameters()).device
 
@@ -82,12 +84,12 @@ def plot_action_function(actor: nn.Module, info: str):
 
     # Plot
     fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(Theta, Thetadot, values, cmap='viridis')
-    ax.set_xlabel('theta (rad)')
-    ax.set_ylabel('thetadot (rad/s)')
-    ax.set_zlabel('u')
-    ax.set_title('Action Function Surface')
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot_surface(Theta, Thetadot, values, cmap="viridis")
+    ax.set_xlabel("theta (rad)")
+    ax.set_ylabel("thetadot (rad/s)")
+    ax.set_zlabel("u")
+    ax.set_title("Action Function Surface")
 
     plt.savefig(f"{PLOTS_DIR}/{datetime.datetime.now()}-ACTION-{info}.png")
     plt.close()
@@ -95,7 +97,7 @@ def plot_action_function(actor: nn.Module, info: str):
 
 class Algo1Trainer:
     def __init__(self, agent: Algo1):
-        #TODO: add all this to config
+        # TODO: add all this to config
         self.F = agent.F
         self.env = agent.env
         self.config = agent.config
@@ -110,7 +112,7 @@ class Algo1Trainer:
             if torch.mps.is_available()
             else "cpu"
         )
-        self.kmax = int(self.config.get("kmax", 6))
+        self.kmax = int(self.config.get("kmax", 5))
         self.epsilon_v = float(self.config.get("epsilon_v", 1e-2))
         self.epsilon_u = float(self.config.get("epsilon_u", 1e-2))
         self.Nepochs = int(self.config.get("Nepochs", 20_000))
@@ -134,7 +136,6 @@ class Algo1Trainer:
         self.state_normalizer = RunningNormalizer(state_dim).to(self.device)
         self.u_max = float(self.env.action_space.high[0])
 
-
     def initalize_actor_lqr(self):
         """
         Initialize the actor network to mimic the LQR policy from linearized dynamics using backpropagation.
@@ -147,8 +148,8 @@ class Algo1Trainer:
             u0 = u0.clone().requires_grad_(True)
 
             def f_x(x):
-                x_b = x.unsqueeze(0)        # [1, state_dim]
-                u_b = u0.unsqueeze(0)       # [1, action_dim]
+                x_b = x.unsqueeze(0)  # [1, state_dim]
+                u_b = u0.unsqueeze(0)  # [1, action_dim]
                 return F(x_b, u_b).squeeze(0)
 
             def f_u(u):
@@ -176,7 +177,6 @@ class Algo1Trainer:
         Q = self.Q.detach().cpu().numpy()
         R = self.R.detach().cpu().numpy()
 
-
         # print(f"{x0.shape=}")
         # print(f"{u0.shape=}")
         # print(f"{A.shape=}")
@@ -193,7 +193,7 @@ class Algo1Trainer:
         # Solve the continuous-time Algebraic Riccati Equation (ARE)
         P = scipy.linalg.solve_continuous_are(A, B, Q, R)
         K = np.linalg.inv(R) @ B.T @ P
-        K = K.astype("float32") 
+        K = K.astype("float32")
 
         print(f"[LQR INIT] {K=}")
 
@@ -206,7 +206,7 @@ class Algo1Trainer:
 
             # Forward pass up to last layer
             features = states
-            net = self.actorNN.net if hasattr(self.actorNN, 'net') else self.actorNN
+            net = self.actorNN.net if hasattr(self.actorNN, "net") else self.actorNN
             for layer in list(net.children())[:-1]:
                 features = layer(features)
 
@@ -218,9 +218,17 @@ class Algo1Trainer:
             W = U.T @ np.linalg.pinv(X.T)  # (action_dim, hidden)
             b = np.zeros(U.shape[1], dtype=W.dtype)
 
-            last_layer.weight.copy_(torch.from_numpy(W).to(last_layer.weight.device, dtype=last_layer.weight.dtype))
+            last_layer.weight.copy_(
+                torch.from_numpy(W).to(
+                    last_layer.weight.device, dtype=last_layer.weight.dtype
+                )
+            )
             if last_layer.bias is not None:
-                last_layer.bias.copy_(torch.from_numpy(b).to(last_layer.bias.device, dtype=last_layer.bias.dtype))
+                last_layer.bias.copy_(
+                    torch.from_numpy(b).to(
+                        last_layer.bias.device, dtype=last_layer.bias.dtype
+                    )
+                )
             print("[LQR INIT] Last layer weights set using pseudoinverse.")
 
     def warmup_normalizer(self, n_batches=50):
@@ -257,8 +265,10 @@ class Algo1Trainer:
                 V.sum(), states_norm, create_graph=True, retain_graph=True
             )[0]
 
-            if self.config["system_params"]["normalize_states"]: 
-                grad_V_raw = grad_V / (self.state_normalizer.var.sqrt() + self.state_normalizer.eps)
+            if self.config["system_params"]["normalize_states"]:
+                grad_V_raw = grad_V / (
+                    self.state_normalizer.var.sqrt() + self.state_normalizer.eps
+                )
             else:
                 grad_V_raw = grad_V
 
@@ -268,24 +278,21 @@ class Algo1Trainer:
             xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
             uRu = torch.einsum("bi,ij,bj->b", actions, self.R, actions)
             lv_terms = xQx + uRu + (grad_V_raw * Fxu).sum(dim=1)
-            weights = 1.0 / (1.0 + states.detach().norm(dim=1)**2)
-            self.L_v = (weights * lv_terms**2).mean()            
-            
-            
+            weights = 1.0 / (1.0 + states.detach().norm(dim=1) ** 2)
+            self.L_v = (weights * lv_terms**2).mean()
+
             # Boundary Loss
             state_dim = self.env.observation_space.shape[0]
             x0 = torch.zeros(state_dim, device=self.device, requires_grad=True)
             v0_bc = torch.zeros(1, device=self.device, requires_grad=True)
             v0_nn = self.criticNN(x0)
-            L_v_bc = (v0_nn-v0_bc)**2
+            L_v_bc = (v0_nn - v0_bc) ** 2
             self.L_v = self.L_v + 10 * L_v_bc.squeeze()
-
 
             # No neg values soft constraint
             V = self.criticNN(states).squeeze()
             L_pos = torch.relu(-V).mean()
             self.L_v = self.L_v + 100 * L_pos
-
 
             self.opt_critic.zero_grad()
             self.L_v.backward()
@@ -313,18 +320,18 @@ class Algo1Trainer:
 
             V = self.criticNN(states).squeeze()
             grad_V = torch.autograd.grad(V.sum(), states, create_graph=True)[0]
-            
+
             # xQx = torch.einsum("bi,ij,bj->b", states, self.Q, states)
             uRu = torch.einsum("bi,ij,bj->b", actions, self.R, actions)
-            
+
             lu_terms = uRu + (grad_V * Fxu).sum(dim=1)
             L_u = lu_terms.mean() + 1e-3 * torch.norm(actions, p=2)
-            
+
             # backprop
             self.opt_actor.zero_grad()
             L_u.backward()
             self.opt_actor.step()
-            
+
             self.actor_losses.append(float(L_u.item()))
             if epoch_iter % self.print_every == 0:
                 print(
@@ -346,7 +353,6 @@ class Algo1Trainer:
 
         self.warmup_normalizer()
         while self.k < self.kmax:
-            
             self.policy_evaluation()
             plot_value_function(self.criticNN, info=f"k={self.k}")
 
@@ -357,7 +363,7 @@ class Algo1Trainer:
             print(
                 f"End of iteration k={self.k}, L_v={self.L_v.item():.6f}, L_u={self.L_u_prev.item():.6f}"
             )
-        
+
         self.policy_evaluation()
         plot_value_function(self.criticNN, info=f"k={self.k}")
 
@@ -365,7 +371,6 @@ class Algo1Trainer:
         self.saveRolloutResults(results, filepath="rollouts_dist.csv")
 
         return self.actor_losses, self.critic_losses
-    
 
     def run_rollout(self, max_steps=200):
         state, _ = self.env.reset()
@@ -394,7 +399,6 @@ class Algo1Trainer:
                 break
 
         return cum_reward
-    
 
     def evaluatePolicyRollouts(self, n_rollouts=100, max_steps=200):
         results = []
@@ -402,14 +406,11 @@ class Algo1Trainer:
         for rollout_id in range(n_rollouts):
             cum_reward = self.run_rollout(max_steps=max_steps)
 
-            results.append({
-                "k": self.k,
-                "rollout": rollout_id,
-                "cum_reward": cum_reward
-            })
+            results.append(
+                {"k": self.k, "rollout": rollout_id, "cum_reward": cum_reward}
+            )
 
         return results
-
 
     def saveRolloutResults(self, results, filepath="rollouts2.csv"):
         df = pd.DataFrame(results)
@@ -421,8 +422,6 @@ class Algo1Trainer:
             pass
 
         df.to_csv(filepath, index=False)
-
-
 
 
 def trainAlgo2(agent: Algo2):

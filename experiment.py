@@ -15,7 +15,7 @@ from training.disturbances import DISTURB_FNS
 from training.callbacks import RewardTrackingCallback, RolloutEvalCallback
 from training.evaluation import plot_training_curves
 
-OUTPUT_DIR = "outputs"
+OUTPUT_DIR = "outputs_compare"
 PLOT_DIR = os.path.join(OUTPUT_DIR, "plots")
 MODEL_DIR = os.path.join(OUTPUT_DIR, "models")
 RESULTS_DIR = os.path.join(OUTPUT_DIR, "results")
@@ -141,37 +141,37 @@ def generate_experiments(
 ):
     MODEL_CONFIGS = {
         # ───────────────────────── PPO ─────────────────────────
-        "PPO": dict(
-            model_cls=PPO,
-            model_kwargs=dict(
-                policy="MlpPolicy",
-                learning_rate=3e-4,
-                n_steps=2048,
-                batch_size=64,
-                n_epochs=10,
-                gamma=0.99,
-                gae_lambda=0.95,
-                clip_range=0.2,
-                ent_coef=0.0,
-                verbose=0,
-            ),
-            n_envs=N_ENVS,
-        ),
-        # ───────────────────────── A2C ─────────────────────────
-        "A2C": dict(
-            model_cls=A2C,
-            model_kwargs=dict(
-                policy="MlpPolicy",
-                learning_rate=7e-4,
-                n_steps=5,
-                gamma=0.99,
-                gae_lambda=1.0,
-                ent_coef=0.0,
-                vf_coef=0.5,
-                verbose=0,
-            ),
-            n_envs=N_ENVS,
-        ),
+        # "PPO": dict(
+        #     model_cls=PPO,
+        #     model_kwargs=dict(
+        #         policy="MlpPolicy",
+        #         learning_rate=3e-4,
+        #         n_steps=2048,
+        #         batch_size=64,
+        #         n_epochs=10,
+        #         gamma=0.99,
+        #         gae_lambda=0.95,
+        #         clip_range=0.2,
+        #         ent_coef=0.0,
+        #         verbose=0,
+        #     ),
+        #     n_envs=N_ENVS,
+        # ),
+        # # ───────────────────────── A2C ─────────────────────────
+        # "A2C": dict(
+        #     model_cls=A2C,
+        #     model_kwargs=dict(
+        #         policy="MlpPolicy",
+        #         learning_rate=7e-4,
+        #         n_steps=5,
+        #         gamma=0.99,
+        #         gae_lambda=1.0,
+        #         ent_coef=0.0,
+        #         vf_coef=0.5,
+        #         verbose=0,
+        #     ),
+        #     n_envs=N_ENVS,
+        # ),
         # ───────────────────────── SAC ─────────────────────────
         "SAC": dict(
             model_cls=SAC,
@@ -209,21 +209,21 @@ def generate_experiments(
             n_envs=N_ENVS,
         ),
         # ───────────────────────── DDPG ─────────────────────────
-        "DDPG": dict(
-            model_cls=DDPG,
-            model_kwargs=dict(
-                policy="MlpPolicy",
-                learning_rate=1e-3,
-                buffer_size=200_000,
-                batch_size=256,
-                gamma=0.99,
-                tau=0.005,
-                train_freq=1,
-                gradient_steps=1,
-                verbose=0,
-            ),
-            n_envs=N_ENVS,
-        ),
+        # "DDPG": dict(
+        #     model_cls=DDPG,
+        #     model_kwargs=dict(
+        #         policy="MlpPolicy",
+        #         learning_rate=1e-3,
+        #         buffer_size=200_000,
+        #         batch_size=256,
+        #         gamma=0.99,
+        #         tau=0.005,
+        #         train_freq=1,
+        #         gradient_steps=1,
+        #         verbose=0,
+        #     ),
+        #     n_envs=N_ENVS,
+        # ),
     }
 
     experiments = []
@@ -269,21 +269,22 @@ def main(experiments):
 
 if __name__ == "__main__":
     rewards = {
-        "Q1_1.0_Q2_0.1_R_0.01": make_reward_quadratic(1.0, 0.1, 0.01, normalise=False),
-        "Q1_5.0_Q2_0.5_R_0.05": make_reward_quadratic(5.0, 0.5, 0.05, normalise=False),
-        "Q1_1.0_Q2_1.0_R_0.1": make_reward_quadratic(1.0, 1.0, 0.1, normalise=False),
-        "Q1_1.0_Q2_0.5_R_0.1_norm": make_reward_quadratic(
-            1.0, 0.5, 0.1, normalise=True
-        ),
-        "Q1_3.0_Q2_1.0_R_0.05_norm": make_reward_quadratic(
-            3.0, 1.0, 0.05, normalise=True
-        ),
-        "cos_Q1_1.0_Q2_0.1_R_0.01": make_reward_cos(1.0, 0.1, 0.01),
-        "cos_Q1_5.0_Q2_0.5_R_0.05": make_reward_cos(5.0, 0.5, 0.05),
-        "cos_Q1_1.0_Q2_1.0_R_0.1": make_reward_cos(1.0, 1.0, 0.1),
-        "survival_3": make_reward_survival(deg_threshold=3),
-        "survival_6": make_reward_survival(deg_threshold=6),
-        "survival_12": make_reward_survival(deg_threshold=12),
+        # "Q1_1.0_Q2_0.1_R_0.01": make_reward_quadratic(1.0, 0.1, 0.01, normalise=False),
+        # "Q1_5.0_Q2_0.5_R_0.05": make_reward_quadratic(5.0, 0.5, 0.05, normalise=False),
+        # "Q1_1.0_Q2_1.0_R_0.1": make_reward_quadratic(1.0, 1.0, 0.1, normalise=False),
+        # "Q1_1.0_Q2_0.5_R_0.1_norm": make_reward_quadratic(
+        #     1.0, 0.5, 0.1, normalise=True
+        # ),
+        # "Q1_3.0_Q2_1.0_R_0.05_norm": make_reward_quadratic(
+        #     3.0, 1.0, 0.05, normalise=True
+        # ),
+        # "cos_Q1_1.0_Q2_0.1_R_0.01": make_reward_cos(1.0, 0.1, 0.01),
+        # "cos_Q1_5.0_Q2_0.5_R_0.05": make_reward_cos(5.0, 0.5, 0.05),
+        # "cos_Q1_1.0_Q2_1.0_R_0.1": make_reward_cos(1.0, 1.0, 0.1),
+        # "survival_3": make_reward_survival(deg_threshold=3),
+        # "survival_6": make_reward_survival(deg_threshold=6),
+        # "survival_12": make_reward_survival(deg_threshold=12),
+        "Q1_2.0_Q2_0.1_R_0.5": make_reward_quadratic(2.0, 0.1, 0.5, normalise=False),
     }
 
     disturbances = {"no_disturbance": DISTURB_FNS["none"]}
