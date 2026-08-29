@@ -1,0 +1,51 @@
+# don't add pth model files to gi
+saved_models/
+derive_dynamics.m
+solve_quadratic.m
+
+pinn_venv/
+algo_logs/
+algo_models/
+outputs/
+outputs*/
+
+nonlineardynamics.ipynb
+
+
+
+# Misc..
+
+
+*.asv
+
+.vscode/
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IPython
+profile_default/
+ipython_config.py
+
+wandb/
+
+.DS_Store
+._*
+
+## Python
+__pycache__/
+__pypackages__/
+
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+*.png
+*.pt
+
+*.csv

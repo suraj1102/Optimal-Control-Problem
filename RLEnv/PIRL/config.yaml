@@ -1,0 +1,36 @@
+experiment_name: "pendulum_pirl"
+algorithm: "Algo1"  # Options: Algo1, Algo2
+env_name: "myPendulum"
+
+system_params:
+  g: 10
+  l: 1
+  m: 0.1
+  b: 0.2
+  normalize_states: false
+  constraint: true
+  umax: 0.7
+
+cost_matrices:
+  Q: [1.0, 0.1] # For [th, th_dot]
+  R: [0.5]
+
+model_size:
+  actor: [10, 10]
+  critic: [10]
+
+hyperparameters:
+  batch_size: 100
+  hidden_dim: 64
+  lr_actor: 0.0001
+  lr_critic: 0.001
+  alpha_v: 1.0
+  beta_v: 50.0  # High weight for Lyapunov stability penalty
+
+training:
+  total_epochs: 10
+
+sampling:
+  sobol_samples: 5000
+  segment_length: 10
+  dt: 0.05

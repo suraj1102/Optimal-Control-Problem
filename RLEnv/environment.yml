@@ -1,0 +1,16 @@
+name: rl
+channels:
+  - defaults
+dependencies:
+  - ipykernel
+  - scipy
+  - python=3.11
+  - matplotlib
+  - pandas
+  - pygame
+  - numpy
+  - pytorch
+  - stable-baselines3
+  - pip
+  - tqdm
+  - rich
