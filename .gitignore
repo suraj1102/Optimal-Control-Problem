@@ -53,3 +53,13 @@ venv.bak/
 pinn_venv/
 algo_logs/
 algo_models/
+
+# --- Experiment / RL run artifacts (mirrors RLEnv/.gitignore) ---
+outputs/
+outputs*/
+nonlineardynamics.ipynb
+*.csv
+
+# PlatformIO build output
+.pio/
+EmbeddedPendulum/*.txt
