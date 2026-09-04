@@ -34,7 +34,7 @@ the base torque $u = \tau$. With length $l$, mass $m$, damping coefficient $b$, 
 gravity $g$, the dynamics are control-affine:
 
 $$
-\dot{\mathbf{x}}  =  f(\mathbf{x}) + g(\mathbf{x})\,u,
+\dot{\mathbf{x}}  =  f(\mathbf{x}) + g(\mathbf{x}) u,
 \qquad
 f(\mathbf{x}) = \begin{bmatrix} \dot\theta \\ \dfrac{g}{l}\sin\theta - \dfrac{b}{m}\dot\theta \end{bmatrix},
 \qquad
@@ -49,17 +49,17 @@ variant used for the reported X-TFC runs is in `problems/damped_inverted_pendulu
 The running cost is quadratic,
 
 $$
-\mathcal{L}(\mathbf{x}, u) = \mathbf{x}^\top Q\,\mathbf{x} + u^\top R_u\, u,
+\mathcal{L}(\mathbf{x}, u) = \mathbf{x}^\top Q \mathbf{x} + u^\top R_u  u,
 \qquad Q \succeq 0, \quad R_u \succ 0,
 $$
 
 and the value function is the optimal cost-to-go
-$V^*(\mathbf{x}(t)) = \min_u \int_0^\infty \mathcal{L}\,\mathrm{d}t$. Splitting the
+$V^*(\mathbf{x}(t)) = \min_u \int_0^\infty \mathcal{L} \mathrm{d}t$. Splitting the
 integral over a short interval $\Delta t$ and letting $\Delta t \to 0$ gives the
 infinite-horizon HJB PDE
 
 $$
-0 = \min_{u}\left\{ \mathcal{L}(\mathbf{x}, u) + \nabla_{\mathbf{x}} V^*(\mathbf{x})^\top \dot{\mathbf{x}} \right\}.
+0 = \min_{u}\left\lbrace \mathcal{L}(\mathbf{x}, u) + \nabla_{\mathbf{x}} V^*(\mathbf{x})^\top \dot{\mathbf{x}} \right\rbrace.
 $$
 
 For control-affine dynamics and quadratic cost the inner minimization is closed-form.
@@ -153,7 +153,7 @@ $$
 and uses the quadratic form of the Riccati matrix as the least-squares target:
 
 $$
-T(\mathbf{x}) = \mathbf{x}^\top S\, \mathbf{x}  \approx  V^*(\mathbf{x}) \quad \text{near } \mathbf{x} = \mathbf{0}.
+T(\mathbf{x}) = \mathbf{x}^\top S  \mathbf{x}  \approx  V^*(\mathbf{x}) \quad \text{near } \mathbf{x} = \mathbf{0}.
 $$
 
 The LQR gain $K = R_u^{-1} B^\top S$ is returned alongside and is what seeds the
@@ -189,7 +189,7 @@ The sequence is therefore:
 
 1. Draw random hidden weights $W, b \sim \mathcal{U}(-1,1)$.
 2. Solve the ridge system once for $\beta$ against the Riccati target (Section 2.2).
-3. Train all of $\{W, b, \beta\}$ for `n_epochs` steps of Adam on `pde_loss`.
+3. Train all of $\lbrace W, b, \beta \rbrace$ for `n_epochs` steps of Adam on `pde_loss`.
 
 Two consequences follow directly from the code:
 
@@ -291,7 +291,7 @@ Steady-state error, mean $|\theta|$ over the last 100 steps of a 1000-step rollo
 $\mathbf{x}_0 = [0.1, 1.0]$. Smaller is better; trajectory optimization is the
 benchmark.
 
-| Method | Type | $\|\theta\|$ (rad) |
+| Method | Type | $\lvert\theta\rvert$ (rad) |
 |---|---|---|
 | Trajectory optimization | benchmark (open-loop) | 0.0000 |
 | SAC | model-free RL | 0.0066 |
