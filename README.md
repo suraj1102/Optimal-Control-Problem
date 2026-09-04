@@ -34,11 +34,11 @@ the base torque $u = \tau$. With length $l$, mass $m$, damping coefficient $b$, 
 gravity $g$, the dynamics are control-affine:
 
 $$
-\dot{\mathbf{x}} \;=\; f(\mathbf{x}) + g(\mathbf{x})\,u,
+\dot{\mathbf{x}}  =  f(\mathbf{x}) + g(\mathbf{x})\,u,
 \qquad
-f(\mathbf{x}) = \begin{bmatrix} \dot\theta \\[2pt] \dfrac{g}{l}\sin\theta - \dfrac{b}{m}\dot\theta \end{bmatrix},
+f(\mathbf{x}) = \begin{bmatrix} \dot\theta \\ \dfrac{g}{l}\sin\theta - \dfrac{b}{m}\dot\theta \end{bmatrix},
 \qquad
-g(\mathbf{x}) = \begin{bmatrix} 0 \\[2pt] \dfrac{1}{ml^2} \end{bmatrix}.
+g(\mathbf{x}) = \begin{bmatrix} 0 \\ \dfrac{1}{ml^2} \end{bmatrix}.
 $$
 
 The undamped variant ($b = 0$) is in `problems/inverted_pendulum.py`; the damped
@@ -50,7 +50,7 @@ The running cost is quadratic,
 
 $$
 \mathcal{L}(\mathbf{x}, u) = \mathbf{x}^\top Q\,\mathbf{x} + u^\top R_u\, u,
-\qquad Q \succeq 0,\; R_u \succ 0,
+\qquad Q \succeq 0, \quad R_u \succ 0,
 $$
 
 and the value function is the optimal cost-to-go
@@ -59,7 +59,7 @@ integral over a short interval $\Delta t$ and letting $\Delta t \to 0$ gives the
 infinite-horizon HJB PDE
 
 $$
-0 = \min_{u}\Big\{ \mathcal{L}(\mathbf{x}, u) + \nabla_{\mathbf{x}} V^*(\mathbf{x})^\top \dot{\mathbf{x}} \Big\}.
+0 = \min_{u}\left\{ \mathcal{L}(\mathbf{x}, u) + \nabla_{\mathbf{x}} V^*(\mathbf{x})^\top \dot{\mathbf{x}} \right\}.
 $$
 
 For control-affine dynamics and quadratic cost the inner minimization is closed-form.
@@ -74,22 +74,14 @@ implemented in `problem.control_input`. Substituting $u^*$ back eliminates $u$ a
 leaves a nonlinear PDE in $V$ alone,
 
 $$
-\mathbf{x}^\top Q \mathbf{x}
-\;+\; \nabla_{\mathbf{x}} V^\top f(\mathbf{x})
-\;-\; \tfrac{1}{4}\, \nabla_{\mathbf{x}} V^\top g(\mathbf{x}) R_u^{-1} g(\mathbf{x})^\top \nabla_{\mathbf{x}} V
-\;=\; 0,
-\qquad V(\mathbf{0}) = 0 .
+\mathbf{x}^\top Q \mathbf{x} + \nabla_{\mathbf{x}} V^\top f(\mathbf{x}) - \frac{1}{4} \nabla_{\mathbf{x}} V^\top g(\mathbf{x}) R_u^{-1} g(\mathbf{x})^\top \nabla_{\mathbf{x}} V = 0, \qquad V(\mathbf{0}) = 0.
 $$
 
 The left-hand side is the residual that the physics-informed methods drive to zero. For
 the damped pendulum it expands (see `damped_inverted_pendulum.pde_residual`) to
 
 $$
-r(\mathbf{x}) =
-q_{11}\theta^2 + q_{22}\dot\theta^2
-+ \dot\theta\, V_\theta
-- \frac{V_{\dot\theta}^2}{4 m^2 l^4 r_{11}}
-+ \left(\frac{g}{l}\sin\theta - \frac{b}{m}\dot\theta\right) V_{\dot\theta}.
+r(\mathbf{x}) = q_{11}\theta^2 + q_{22}\dot\theta^2 + \dot\theta V_\theta - \frac{V_{\dot\theta}^2}{4 m^2 l^4 r_{11}} + \left(\frac{g}{l}\sin\theta - \frac{b}{m}\dot\theta\right) V_{\dot\theta}.
 $$
 
 Retaining a finite horizon $T$ instead of taking $\Delta t \to 0$ gives the integral
@@ -110,7 +102,7 @@ constraint is satisfied by construction. Writing the raw network output as
 $g_\text{net}$, the value is formed as
 
 $$
-V(\mathbf{x}) \;=\; g_\text{net}(\mathbf{x}) \;+\; V_{\mathrm{bc}} \;-\; g_\text{net}(\mathbf{x}_{\mathrm{bc}}),
+V(\mathbf{x})  =  g_\text{net}(\mathbf{x})  +  V_{\mathrm{bc}}  -  g_\text{net}(\mathbf{x}_{\mathrm{bc}}),
 $$
 
 with $\mathbf{x}_{\mathrm{bc}} = \mathbf{0}$ and $V_{\mathrm{bc}} = 0$
@@ -161,7 +153,7 @@ $$
 and uses the quadratic form of the Riccati matrix as the least-squares target:
 
 $$
-T(\mathbf{x}) = \mathbf{x}^\top S\, \mathbf{x} \;\approx\; V^*(\mathbf{x}) \quad \text{near } \mathbf{x} = \mathbf{0}.
+T(\mathbf{x}) = \mathbf{x}^\top S\, \mathbf{x}  \approx  V^*(\mathbf{x}) \quad \text{near } \mathbf{x} = \mathbf{0}.
 $$
 
 The LQR gain $K = R_u^{-1} B^\top S$ is returned alongside and is what seeds the
